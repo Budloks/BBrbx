@@ -20,6 +20,7 @@ local CameraManager = require(script.Parent.Services.CameraManager)
 local RigPushService = require(script.Parent.Services.RigPushService)
 local DeformBindService = require(script.Parent.Services.DeformBindService)
 local BulkService = require(script.Parent.Services.BulkService)
+local RigDoctor = require(script.Parent.Services.RigDoctor)
 
 -- Import UI components
 local PlayerTab = require(script.Parent.UI.Tabs.PlayerTab)
@@ -78,6 +79,7 @@ local blenderSyncManager = BlenderSyncManager.new(playbackService, animationMana
 local rigPushService = RigPushService.new(rigManager, blenderSyncManager)
 local deformBindService = DeformBindService.new(rigManager, blenderSyncManager)
 local bulkService = BulkService.new(animationManager, blenderSyncManager, Plugin)
+local rigDoctor = RigDoctor.new(rigManager)
 
 
 State.rigManager = rigManager
@@ -95,6 +97,7 @@ local services = {
 	rigPushService = rigPushService,
 	deformBindService = deformBindService,
 	bulkService = bulkService,
+	rigDoctor = rigDoctor,
 	plugin = Plugin,
 }
 
@@ -260,7 +263,22 @@ end
 table.insert(
 	State.observers,
 	Observer(State.activeSessionRig):onChange(function()
-		cameraManager:onActiveRigChanged(State.activeSessionRig:get())
+		local rigModel = State.activeSessionRig:get()
+		cameraManager:onActiveRigChanged(rigModel)
+		-- BB fork: pick the Blender armature that belongs to this rig
+		-- ("__<Rig>_Armature" from the importer) so you don't have to.
+		if rigModel then
+			local wanted = "__" .. rigModel.Name .. "_Armature"
+			for _, arm in ipairs(State.availableArmatures:get() or {}) do
+				if arm.name == wanted then
+					local current = State.selectedArmature:get()
+					if not current or (current :: any).name ~= wanted then
+						State.selectedArmature:set(arm)
+					end
+					break
+				end
+			end
+		end
 	end)
 )
 
@@ -312,6 +330,25 @@ do -- Creates the plugin
 		importClipboardAction.Triggered:Connect(function()
 			State.activeTab:set("Player")
 			importAnimationFromClipboard()
+		end)
+	)
+
+	-- BB fork: bindable shortcut (File > Advanced > Customize Shortcuts)
+	local toggleCameraAction = Plugin:CreatePluginAction(
+		"RBXMonkeyBB_ToggleCamera",
+		"RBXMonkey BB: Attach/Detach Camera",
+		"Attach the camera to the active rig's CameraBone/Head (or the picked part), or detach it",
+		""
+	)
+	table.insert(
+		State.connections,
+		toggleCameraAction.Triggered:Connect(function()
+			if State.isCameraAttached:get() then
+				cameraManager:detachCamera()
+			else
+				cameraManager:updatePartsList()
+				cameraManager:attachCameraByName(State.selectedPartName:get())
+			end
 		end)
 	)
 

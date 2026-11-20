@@ -408,6 +408,48 @@ function RiggingTab.create(services: any)
 						activeHint:set("")
 					end,
 				}) :: any,
+				New("Frame")({
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 0, 28),
+					[Children] = {
+						New("UIListLayout")({ FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }),
+						Button({
+							Text = "Rig Doctor: Scan",
+							Size = UDim2.new(0.5, -2, 1, 0),
+							Enabled = Computed(function()
+								return not bbBusy:get()
+							end),
+							Activated = function(): nil
+								runBB("Scanning rigs", function()
+									local message = services.rigDoctor:scan()
+									return { message = message }
+								end)
+								return nil
+							end,
+							[OnEvent("MouseEnter")] = function()
+								activeHint:set(
+									"Scans the selected rig, or every rig inside a selected folder, for nested AnimationControllers, missing PrimaryPart, duplicate bone names and importer leftovers."
+								)
+							end,
+							[OnEvent("MouseLeave")] = function()
+								activeHint:set("")
+							end,
+						}),
+						Button({
+							Text = "Fix All",
+							Size = UDim2.new(0.5, -2, 1, 0),
+							Enabled = Computed(function()
+								return not bbBusy:get()
+							end),
+							Activated = function(): nil
+								runBB("Fixing rigs", function()
+									return { message = services.rigDoctor:fixAll() }
+								end)
+								return nil
+							end,
+						}),
+					},
+				}) :: any,
 				Label({
 					Text = bbStatus,
 					TextWrapped = true,
