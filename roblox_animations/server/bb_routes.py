@@ -121,10 +121,15 @@ def action_range(action):
 def action_settings(action):
     """Per-action Roblox settings stored as custom props (set in the BB panel)."""
     out = {}
-    for key, prop in (("priority", "rbx_priority"), ("loop", "rbx_loop"), ("name", "rbx_target_name")):
-        if prop in action:
-            value = action[prop]
-            out[key] = bool(value) if key == "loop" else str(value)
+    priority = getattr(action, "rbx_bb_priority", "DEFAULT")
+    if priority and priority != "DEFAULT":
+        out["priority"] = priority
+    loop = getattr(action, "rbx_bb_loop", "DEFAULT")
+    if loop in ("ON", "OFF"):
+        out["loop"] = loop == "ON"
+    name = getattr(action, "rbx_bb_name", "")
+    if name:
+        out["name"] = name
     return out
 
 

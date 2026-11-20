@@ -261,6 +261,17 @@ def register():
         for cls in CLASSES:
             _safe_register_class(cls)
 
+        # BB fork: operators, panel and per-action Roblox settings
+        try:
+            from .operators import bb_ops
+            from .ui import bb_panel
+
+            for cls in bb_ops.CLASSES + bb_panel.CLASSES:
+                _safe_register_class(cls)
+            bb_panel.register_action_props()
+        except Exception as bb_error:
+            print(f"RBXMonkey BB: could not register fork UI: {bb_error}")
+
         # Register properties
         try:
             ui.unregister_properties()
@@ -291,6 +302,16 @@ def register():
 
 def unregister():
     """Unregister the addon"""
+
+    try:
+        from .operators import bb_ops
+        from .ui import bb_panel
+
+        bb_panel.unregister_action_props()
+        for cls in reversed(bb_ops.CLASSES + bb_panel.CLASSES):
+            _safe_unregister_class(cls)
+    except Exception:
+        pass
 
     try:
         # Clean up draw handlers first

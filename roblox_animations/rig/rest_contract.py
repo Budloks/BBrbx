@@ -66,11 +66,23 @@ def is_copied_duplicate(bone) -> bool:
     exact name, so the props describe that other bone, not this one.
     """
     data_bone = getattr(bone, "bone", bone)
-    source = data_bone.get("rbx_source_name")
-    if not source or source == data_bone.name:
-        return False
     armature = data_bone.id_data
-    return armature is not None and source in armature.bones
+    if armature is None:
+        return False
+    source = data_bone.get("rbx_source_name")
+    if source:
+        return source != data_bone.name and source in armature.bones
+    # Older imports have no rbx_source_name: "LeftArm.001" with the very same
+    # Roblox transform as an existing "LeftArm" is a Blender copy.
+    import re
+
+    match = re.match(r"^(.*)\.\d{3}$", data_bone.name)
+    if not match or "transform" not in data_bone:
+        return False
+    original = armature.bones.get(match.group(1))
+    if original is None or "transform" not in original:
+        return False
+    return _close(to_matrix(original["transform"]), to_matrix(data_bone["transform"]))
 
 
 def channel_name(bone) -> str:
@@ -306,6 +318,15 @@ def _roblox_parent_of(data_bone, exported: Dict[str, Any]):
     parent = data_bone.parent
     while parent is not None and parent.name not in exported:
         parent = parent.parent
+    if parent is None:
+        # A Blender root bone that is not the rig root hangs off the rig's
+        # PrimaryPart in Roblox (e.g. a weapon bone chain with no parent).
+        rig_roots = [
+            b for b in exported.values()
+            if b.parent is None and is_stamped(b) and not b.get(ADOPTED_PROP) and b.name != data_bone.name
+        ]
+        if rig_roots and not (data_bone.parent is None and is_stamped(data_bone) and not data_bone.get(ADOPTED_PROP)):
+            return rig_roots[0]
     return parent
 
 
