@@ -387,6 +387,27 @@ function RiggingTab.create(services: any)
 						activeHint:set("")
 					end,
 				}) :: any,
+				Button({
+					Text = "Bind Imported Mesh",
+					Size = UDim2.new(1, 0, 0, 30),
+					Enabled = Computed(function()
+						return State.activeRigExists:get() and not bbBusy:get()
+					end),
+					Activated = function(): nil
+						runBB("Binding imported mesh", function()
+							return services.deformBindService:bindImportedMesh()
+						end)
+						return nil
+					end,
+					[OnEvent("MouseEnter")] = function()
+						activeHint:set(
+							"After Blender's 'Export Deform FBX' and Import 3D: fixes the import scale, places the mesh on the Blender rest, hangs its bones on the rig, keeps the texture and backs up the parts it replaces."
+						)
+					end,
+					[OnEvent("MouseLeave")] = function()
+						activeHint:set("")
+					end,
+				}) :: any,
 				Label({
 					Text = bbStatus,
 					TextWrapped = true,

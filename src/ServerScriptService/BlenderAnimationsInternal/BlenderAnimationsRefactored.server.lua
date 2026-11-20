@@ -18,6 +18,7 @@ local BlenderSyncManager = require(script.Parent.Services.BlenderSyncManager)
 local ExportManager = require(script.Parent.Services.ExportManager)
 local CameraManager = require(script.Parent.Services.CameraManager)
 local RigPushService = require(script.Parent.Services.RigPushService)
+local DeformBindService = require(script.Parent.Services.DeformBindService)
 
 -- Import UI components
 local PlayerTab = require(script.Parent.UI.Tabs.PlayerTab)
@@ -74,6 +75,7 @@ local animationManager = AnimationManager.new(playbackService, Plugin)
 local exportManager = ExportManager.new(Plugin)
 local blenderSyncManager = BlenderSyncManager.new(playbackService, animationManager)
 local rigPushService = RigPushService.new(rigManager, blenderSyncManager)
+local deformBindService = DeformBindService.new(rigManager, blenderSyncManager)
 
 
 State.rigManager = rigManager
@@ -89,6 +91,7 @@ local services = {
 	cameraManager = cameraManager,
 	blenderSyncManager = blenderSyncManager,
 	rigPushService = rigPushService,
+	deformBindService = deformBindService,
 	plugin = Plugin,
 }
 
