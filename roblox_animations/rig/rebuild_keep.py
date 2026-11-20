@@ -65,11 +65,14 @@ def _set_aside(old, master):
     old.data.name = old.data.name + "__bb_old"
 
 
-def _find_new_armature(master, old):
-    for obj in master.all_objects:
-        if obj.type == "ARMATURE" and obj.name != old.name:
-            return obj
-    return None
+def _find_new_armature(before_names, meta_name):
+    """The armature create_rig just made: new since `before_names`, preferring the
+    one tagged with this metadata. Never a sibling control armature."""
+    created = [o for o in bpy.data.objects if o.type == "ARMATURE" and o.name not in before_names]
+    tagged = [o for o in created if o.get("rbx_rig_meta_name") == meta_name]
+    if tagged:
+        return tagged[0]
+    return created[0] if len(created) == 1 else None
 
 
 def _recreate_user_bones(new, snapshot):
@@ -203,17 +206,33 @@ def rebuild_keep_user_bones(rigging_type: str, meta_name: str, old_armature=None
         bpy.ops.object.mode_set(mode="OBJECT")
     snapshot = _snapshot_user_bones(old_armature)
     original_collections = list(old_armature.users_collection)
+    original_name, original_data_name = old_armature.name, old_armature.data.name
+    original_tag = old_armature.get("rbx_rig_meta_name")
     _set_aside(old_armature, master)
+    # create_rig deletes the armature it is told to replace; without a target it
+    # would pick any other armature in the collection (e.g. a sibling control rig).
+    # Hand it a throwaway placeholder instead.
+    placeholder = bpy.data.objects.new("__bb_rebuild_placeholder", bpy.data.armatures.new("__bb_rebuild_placeholder"))
+    (master or bpy.context.scene.collection).objects.link(placeholder)
+    before_names = {o.name for o in bpy.data.objects}
     try:
-        create_rig(rigging_type, meta_name)
+        create_rig(rigging_type, meta_name, target_armature=placeholder)
     except Exception:
         # Put the old armature back exactly where it was
+        if placeholder.name in bpy.data.objects:
+            bpy.data.objects.remove(placeholder, do_unlink=True)
         bpy.context.scene.collection.objects.unlink(old_armature)
         for coll in original_collections:
             coll.objects.link(old_armature)
-        old_armature.name = old_armature.name.replace("__bb_old", "")
+        old_armature.name = original_name
+        old_armature.data.name = original_data_name
+        if original_tag is not None:
+            old_armature["rbx_rig_meta_name"] = original_tag
         raise
-    new = _find_new_armature(master, old_armature) if master else None
+    for arm_data in list(bpy.data.armatures):
+        if arm_data.name.startswith("__bb_rebuild_placeholder") and arm_data.users == 0:
+            bpy.data.armatures.remove(arm_data)
+    new = _find_new_armature(before_names, meta.name)
     if new is None:
         raise RuntimeError("Rebuild produced no armature")
 
