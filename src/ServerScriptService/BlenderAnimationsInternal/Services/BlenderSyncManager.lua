@@ -35,7 +35,89 @@ local function buildTargetBoneRestCalibration(activeRig: any): any?
 		end
 	end
 
-	if boneCount == 0 then
+	-- BB fork: full rest frames for every channel, relative to the PrimaryPart and
+	-- walked through C0/C1 / Bone.CFrame (so an animation that is currently playing
+	-- or where the rig stands in the world never leaks in). Blender stamps bones it
+	-- added with these frames and exports them exactly instead of guessing axes.
+	local frames = {}
+	local rootName = nil
+	local root = activeRig.root
+	if root and root.part then
+		rootName = root.part.Name
+		local restByInstance: { [Instance]: CFrame } = {}
+
+		local function components(cf: CFrame)
+			return { cf:GetComponents() }
+		end
+
+		local function walk(rigPart: any, rest: CFrame)
+			local inst = rigPart.part
+			restByInstance[inst] = rest
+			for _, child in ipairs(rigPart.children or {}) do
+				local childInst = child.part
+				if typeof(childInst) ~= "Instance" or frames[childInst.Name] then
+					continue
+				end
+				local childRest: CFrame? = nil
+				local c1: CFrame? = nil
+				local kind = "Motor6D"
+				if childInst:IsA("Bone") then
+					local parentInst = childInst.Parent
+					local parentRest = (parentInst and restByInstance[parentInst]) or rest
+					childRest = parentRest * (childInst :: Bone).CFrame
+					kind = "Bone"
+				else
+					local joint = child.joint
+					if joint and (joint:IsA("Motor6D") or joint:IsA("Weld")) then
+						local j = joint :: any
+						local jt0, jt1 = j.C0, j.C1
+						if not child.jointParentIsPart0 then
+							jt0, jt1 = j.C1, j.C0
+						end
+						childRest = rest * jt0 * jt1:Inverse()
+						c1 = jt1
+						kind = joint.ClassName
+					elseif joint and joint:IsA("WeldConstraint") then
+						local wc = joint :: WeldConstraint
+						if wc.Part0 and wc.Part1 then
+							childRest = rest * wc.Part0.CFrame:ToObjectSpace(wc.Part1.CFrame)
+						end
+						kind = "WeldConstraint"
+					elseif joint and joint:IsA("AnimationConstraint") then
+						local ac = joint :: AnimationConstraint
+						local a0, a1 = ac.Attachment0, ac.Attachment1
+						if a0 and a1 then
+							local o0, o1 = a0.CFrame, a1.CFrame
+							if not child.jointParentIsPart0 then
+								o0, o1 = o1, o0
+							end
+							childRest = rest * o0 * o1:Inverse()
+							c1 = o1
+						end
+						kind = "AnimationConstraint"
+					end
+				end
+				if childRest then
+					frames[childInst.Name] = {
+						kind = kind,
+						parent = inst.Name,
+						part = components(childRest),
+						c1 = c1 and components(c1) or nil,
+					}
+					walk(child, childRest)
+				end
+			end
+		end
+
+		frames[rootName] = { kind = "Root", part = { CFrame.identity:GetComponents() } }
+		local ok, err = pcall(walk, root, CFrame.identity)
+		if not ok then
+			warn("[RBXMonkey BB] Could not collect rig rest frames:", err)
+			frames = {}
+		end
+	end
+
+	if boneCount == 0 and next(frames) == nil then
 		return nil
 	end
 
@@ -43,6 +125,8 @@ local function buildTargetBoneRestCalibration(activeRig: any): any?
 		rig_name = activeRig.model and activeRig.model.Name or nil,
 		bone_count = boneCount,
 		bones = bones,
+		root = rootName,
+		frames = frames,
 	}
 end
 

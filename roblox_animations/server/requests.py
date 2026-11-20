@@ -349,6 +349,19 @@ def execute_in_main_thread(task_id, armature_name, target_bone_rest=None, live_p
             preview_step = max(1, int(round(desired_fps / 15.0)))
             context_scene.frame_step = max(context_scene.frame_step, preview_step)
 
+        # BB fork: bones added in Blender that exist in the Roblox rig get the
+        # exact Roblox rest frames Studio sent, so the exporter never has to guess
+        # their axes (the old fixed 180-degree-about-Y assumption).
+        if target_bone_rest:
+            try:
+                from ..rig.rest_contract import adopt_from_target_rest
+
+                adopted = adopt_from_target_rest(ao, target_bone_rest)
+                if adopted:
+                    print(f"[RBXMonkey BB] Adopted Roblox rest for: {', '.join(adopted)}")
+            except Exception as adopt_error:  # never block an export on this
+                print(f"[RBXMonkey BB] Rest adoption skipped: {adopt_error}")
+
         serialized = None
         try:
             serialized = serialize(ao, target_bone_rest=target_bone_rest)

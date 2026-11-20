@@ -230,7 +230,14 @@ def serialize_animation_state(
                     statel = [round(x, cf_round_fac) for x in statel]
 
                 if statel != identity_cf:
-                    state[bone.name] = statel
+                    # BB fork: key by the Roblox channel name so renaming a bone in
+                    # Blender never breaks its channel. Structural duplicates keep
+                    # their unique Blender name.
+                    export_name = bone.name
+                    source_name = bone.bone.get("rbx_source_name")
+                    if source_name and not bone.name.startswith("__RBX_STRUCTURAL__"):
+                        export_name = str(source_name)
+                    state[export_name] = statel
             except Exception as e:
                 print(f"[Export] Skipping bone '{bone.name}' due to serialization error: {e}")
 
