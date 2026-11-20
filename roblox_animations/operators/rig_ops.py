@@ -58,6 +58,16 @@ class OBJECT_OT_GenRig(bpy.types.Operator):
         name="Rigging type",
     )
 
+    # BB fork: rebuilding used to delete every bone you added in Blender
+    pr_keep_user_bones: bpy.props.BoolProperty(
+        name="Keep my bones",
+        description=(
+            "Keep bones you added in Blender (limb chains, IK/control bones), all "
+            "bone constraints and the action when rebuilding from Roblox data"
+        ),
+        default=True,
+    )
+
     def has_roblox_rig(self):
         """Check if scene has either rig meta objects or armatures with Motor6D properties"""
         # Check for rig meta objects (existing method)
@@ -119,7 +129,16 @@ class OBJECT_OT_GenRig(bpy.types.Operator):
         try:
             # Check if the selected item is a rig meta object or an armature
             selected_obj = get_object_by_name(self.pr_rig_meta_name, context.scene)
-            if selected_obj and "RigMeta" in selected_obj:
+            if selected_obj and "RigMeta" in selected_obj and self.pr_keep_user_bones:
+                from ..rig.rebuild_keep import rebuild_keep_user_bones
+
+                result = rebuild_keep_user_bones(self.pr_rigging_type, self.pr_rig_meta_name)
+                kept = result.get("kept_bones") or []
+                self.report(
+                    {"INFO"},
+                    f"Rig rebuilt from {self.pr_rig_meta_name}, kept {len(kept)} of your bones.",
+                )
+            elif selected_obj and "RigMeta" in selected_obj:
                 # Existing case: rig meta object
                 create_rig(self.pr_rigging_type, self.pr_rig_meta_name)
                 self.report({"INFO"}, f"Rig rebuilt from {self.pr_rig_meta_name}.")
@@ -132,7 +151,12 @@ class OBJECT_OT_GenRig(bpy.types.Operator):
                 )
             ):
                 meta_obj_name = self.resolve_rig_meta_from_armature(selected_obj)
-                create_rig(self.pr_rigging_type, meta_obj_name, target_armature=selected_obj)
+                if self.pr_keep_user_bones:
+                    from ..rig.rebuild_keep import rebuild_keep_user_bones
+
+                    rebuild_keep_user_bones(self.pr_rigging_type, meta_obj_name, old_armature=selected_obj)
+                else:
+                    create_rig(self.pr_rigging_type, meta_obj_name, target_armature=selected_obj)
                 self.report(
                     {"INFO"},
                     f"Rig rebuilt from detected armature {self.pr_rig_meta_name}.",
