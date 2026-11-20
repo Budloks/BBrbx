@@ -86,6 +86,9 @@ local State = {
     selectedPart = Value(nil),
     -- BB fork: camera target is tracked by name and re-resolved per rig
     selectedPartName = Value(nil :: string?),
+    -- BB fork: short description of the last import self-check ("" when it matched Blender)
+    lastImportVerification = "",
+    lastImportVerificationDetail = Value(""),
     isCameraAttached = Value(false),
     fovValue = Value(game.Workspace.CurrentCamera.FieldOfView),
     

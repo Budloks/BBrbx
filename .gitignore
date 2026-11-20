@@ -80,3 +80,5 @@ parts.mtl
 _*.py
 
 Sample Rigs/
+# BB fork: vendored Fusion 0.2 + Promise (not in upstream git), used by plugin.project.json
+!vendor/Packages.rbxm

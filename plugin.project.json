@@ -1,6 +1,9 @@
 {
   "name": "RBXMonkeyBB",
   "tree": {
-    "$path": "src/ServerScriptService/BlenderAnimationsInternal"
+    "$path": "src/ServerScriptService/BlenderAnimationsInternal",
+    "Packages": {
+      "$path": "vendor/Packages.rbxm"
+    }
   }
 }

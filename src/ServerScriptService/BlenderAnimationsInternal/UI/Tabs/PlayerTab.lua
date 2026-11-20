@@ -27,6 +27,7 @@ local themeProvider = require(StudioComponentsUtil.themeProvider)
 local SharedComponents = require(script.Parent.Parent.SharedComponents)
 local AnimationImportControls = require(script.Parent.Parent.Components.AnimationImportControls)
 local BoneToggles = require(script.Parent.Parent.Components.BoneToggles)
+local BulkActions = require(script.Parent.Parent.Components.BulkActions)
 
 local PlayerTab = {}
 
@@ -38,6 +39,7 @@ function PlayerTab.create(services: any)
 
 	return {
 		AnimationImportControls.create(services, 1),
+		BulkActions.create(services, 2),
 		VerticalCollapsibleSection({
 			Text = "Save/Upload",
 			Collapsed = false,
