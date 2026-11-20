@@ -927,6 +927,26 @@ function AnimationManager:loadAnimDataFromText(text: string, isBinary: boolean, 
 		local success, rigResult = pcall(self.loadRig, self, nil, progressContext:child(0.95, 1))
 		if success and rigResult ~= false then
 			State.animationDirty:set(false)
+			-- BB fork: silent self-check against Blender's control samples
+			State.lastImportVerification = ""
+			local check = type(result) == "table" and (result :: any).bb_check or nil
+			if check and State.activeRig then
+				local okVerify, issues = pcall(function()
+					local ImportVerifier = require(script.Parent.ImportVerifier)
+					return ImportVerifier.verify(State.activeRig, check)
+				end)
+				if okVerify and type(issues) == "table" and #issues > 0 then
+					local ImportVerifier = require(script.Parent.ImportVerifier)
+					State.lastImportVerification = ImportVerifier.summarize(issues)
+					State.lastImportVerificationDetail:set(ImportVerifier.summarize(issues, 50))
+					warn("[RBXMonkey BB] Import check: Studio does not play this like Blender: " .. ImportVerifier.summarize(issues, 50))
+					if State.rigManager and State.rigManager.addWarning then
+						State.rigManager:addWarning("Import check: " .. State.lastImportVerification)
+					end
+				else
+					State.lastImportVerificationDetail:set("")
+				end
+			end
 			progressContext:set(
 				1,
 				"Animation loaded",

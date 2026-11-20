@@ -388,6 +388,18 @@ def execute_in_main_thread(task_id, armature_name, target_bone_rest=None, live_p
             )
             return
 
+        # BB fork: control samples for Studio's automatic import check (skipped
+        # for live preview / live sync to keep those fast)
+        if serialized and not live_preview and delta_base_hash is None:
+            try:
+                from ..animation.bb_check import build_check
+
+                check = build_check(ao)
+                if check:
+                    serialized["bb_check"] = check
+            except Exception as check_error:
+                print(f"[RBXMonkey BB] Import check samples skipped: {check_error}")
+
         if not serialized.get("kfs") or len(serialized["kfs"]) == 0:
             pending_responses[task_id] = (
                 False,

@@ -67,7 +67,7 @@ def _set_aside(old, master):
 
 def _find_new_armature(master, old):
     for obj in master.all_objects:
-        if obj.type == "ARMATURE" and obj is not old:
+        if obj.type == "ARMATURE" and obj.name != old.name:
             return obj
     return None
 
@@ -157,7 +157,7 @@ def _move_animation(old, new):
 
 def _retarget_scene(old, new):
     for obj in bpy.data.objects:
-        if obj in (old, new):
+        if obj.name in (old.name, new.name):
             continue
         for mod in getattr(obj, "modifiers", []):
             if mod.type == "ARMATURE" and mod.object == old:
