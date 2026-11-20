@@ -1,5 +1,5 @@
 """Build the Blender extension zip (manifest at the zip root, no tests/caches).
-Usage: python tools/bb/build_addon.py  ->  build/rbxmonkey_bb_<version>.zip"""
+Usage: python tools/bb/build_addon.py  ->  build/bbrbx_<version>.zip"""
 import os
 import re
 import zipfile
@@ -11,7 +11,7 @@ SKIP_DIRS = {"tests", "__pycache__", ".ruff_cache", ".pytest_cache", ".mypy_cach
 manifest = open(os.path.join(SRC, "blender_manifest.toml"), encoding="utf-8").read()
 version = re.search(r'^version\s*=\s*"([^"]+)"', manifest, re.M).group(1)
 os.makedirs(os.path.join(ROOT, "build"), exist_ok=True)
-out = os.path.join(ROOT, "build", f"rbxmonkey_bb_{version}.zip")
+out = os.path.join(ROOT, "build", f"bbrbx_{version}.zip")
 count = 0
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     for dirpath, dirnames, filenames in os.walk(SRC):

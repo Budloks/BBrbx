@@ -368,9 +368,9 @@ def execute_in_main_thread(task_id, armature_name, target_bone_rest=None, live_p
 
                 adopted = adopt_from_target_rest(ao, target_bone_rest)
                 if adopted:
-                    print(f"[RBXMonkey BB] Adopted Roblox rest for: {', '.join(adopted)}")
+                    print(f"[BBrbx] Adopted Roblox rest for: {', '.join(adopted)}")
             except Exception as adopt_error:  # never block an export on this
-                print(f"[RBXMonkey BB] Rest adoption skipped: {adopt_error}")
+                print(f"[BBrbx] Rest adoption skipped: {adopt_error}")
 
         serialized = None
         try:
@@ -398,7 +398,7 @@ def execute_in_main_thread(task_id, armature_name, target_bone_rest=None, live_p
                 if check:
                     serialized["bb_check"] = check
             except Exception as check_error:
-                print(f"[RBXMonkey BB] Import check samples skipped: {check_error}")
+                print(f"[BBrbx] Import check samples skipped: {check_error}")
 
         if not serialized.get("kfs") or len(serialized["kfs"]) == 0:
             pending_responses[task_id] = (

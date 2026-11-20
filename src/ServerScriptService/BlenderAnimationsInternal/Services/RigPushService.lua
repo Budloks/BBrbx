@@ -100,7 +100,7 @@ function RigPushService:pushRig(): PushSummary
 	local created: { [string]: Instance } = {}
 	local applied = {}
 
-	local recording = ChangeHistoryService:TryBeginRecording("RBXMonkey BB: Push Rig")
+	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Push Rig")
 	local okApply, applyErr = pcall(function()
 		for _, ch in ipairs(topoSort(layout.channels or {})) do
 			if not ch.parent then
@@ -174,7 +174,7 @@ function RigPushService:pushRig(): PushSummary
 				part.Massless = true
 				part.Anchored = false
 				part.CFrame = parentPart.CFrame * rel
-				part:SetAttribute("RBXMonkeyBBHandle", true)
+				part:SetAttribute("BBrbxHandle", true)
 				local motor = Instance.new("Motor6D")
 				motor.Name = ch.name
 				motor.Part0 = parentPart
@@ -234,9 +234,9 @@ function RigPushService:pushRig(): PushSummary
 	end
 	result.message = "Push Rig: " .. table.concat(parts, ", ")
 	for _, f in ipairs(result.failed) do
-		warn("[RBXMonkey BB] Push Rig: " .. f)
+		warn("[BBrbx] Push Rig: " .. f)
 	end
-	print("[RBXMonkey BB] " .. result.message)
+	print("[BBrbx] " .. result.message)
 	return result
 end
 

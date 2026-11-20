@@ -154,14 +154,14 @@ function RigDoctor:scan(): (string, { Finding })
 		if f.fix then
 			fixable += 1
 		end
-		warn(string.format("[RBXMonkey BB] Rig Doctor: %s: %s", f.rig.Name, f.text))
+		warn(string.format("[BBrbx] Rig Doctor: %s: %s", f.rig.Name, f.text))
 	end
 	return string.format("Checked %d rig(s): %d problem(s), %d fixable (see Output)", #targets, #all, fixable), all
 end
 
 function RigDoctor:fixAll(): string
 	local _, findings = self:scan()
-	local recording = ChangeHistoryService:TryBeginRecording("RBXMonkey BB: Rig Doctor fixes")
+	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Rig Doctor fixes")
 	local fixed = 0
 	for _, f in ipairs(findings) do
 		if f.fix then

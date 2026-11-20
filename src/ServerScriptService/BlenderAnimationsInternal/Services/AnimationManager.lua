@@ -939,7 +939,7 @@ function AnimationManager:loadAnimDataFromText(text: string, isBinary: boolean, 
 					local ImportVerifier = require(script.Parent.ImportVerifier)
 					State.lastImportVerification = ImportVerifier.summarize(issues)
 					State.lastImportVerificationDetail:set(ImportVerifier.summarize(issues, 50))
-					warn("[RBXMonkey BB] Import check: Studio does not play this like Blender: " .. ImportVerifier.summarize(issues, 50))
+					warn("[BBrbx] Import check: Studio does not play this like Blender: " .. ImportVerifier.summarize(issues, 50))
 					if State.rigManager and State.rigManager.addWarning then
 						State.rigManager:addWarning("Import check: " .. State.lastImportVerification)
 					end

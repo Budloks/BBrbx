@@ -33,7 +33,7 @@ def _roblox_euler_degrees(m3):
 
 
 class RBXBB_PT_panel(bpy.types.Panel):
-    bl_label = "RBXMonkey BB"
+    bl_label = "BBrbx"
     bl_idname = "RBXBB_PT_panel"
     bl_category = "RBXMonkey"
     bl_space_type = "VIEW_3D"

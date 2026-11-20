@@ -95,7 +95,7 @@ class RbxAnimationsAutoDetectContent(bpy.types.Operator):
 
 # Define bl_info directly to avoid import issues
 bl_info = {
-    "name": "RBXMonkey BB - Roblox Importer/Exporter",
+    "name": "BBrbx - Roblox Importer/Exporter",
     "description": "Plugin for importing roblox rigs and exporting animations.",
     "author": "Cautioned",
     "version": (3, 2, 0),
@@ -270,7 +270,7 @@ def register():
                 _safe_register_class(cls)
             bb_panel.register_action_props()
         except Exception as bb_error:
-            print(f"RBXMonkey BB: could not register fork UI: {bb_error}")
+            print(f"BBrbx: could not register fork UI: {bb_error}")
 
         # Register properties
         try:

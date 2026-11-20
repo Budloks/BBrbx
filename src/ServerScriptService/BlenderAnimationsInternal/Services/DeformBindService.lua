@@ -24,7 +24,7 @@ local State = require(script.Parent.Parent.state)
 local DeformBindService = {}
 DeformBindService.__index = DeformBindService
 
-local BB_MESH_ATTRIBUTE = "RBXMonkeyBBDeformMesh"
+local BB_MESH_ATTRIBUTE = "BBrbxDeformMesh"
 
 function DeformBindService.new(rigManager: any, blenderSyncManager: any)
 	local self = setmetatable({}, DeformBindService)
@@ -169,7 +169,7 @@ function DeformBindService:bindImportedMesh()
 		return rp and rp.part or nil
 	end
 
-	local recording = ChangeHistoryService:TryBeginRecording("RBXMonkey BB: Bind Imported Mesh")
+	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Bind Imported Mesh")
 	local summary = {}
 	local ok, bindErr = pcall(function()
 		-- 1. Scale (compare bone-to-parent distances with the Blender layout)
@@ -191,7 +191,7 @@ function DeformBindService:bindImportedMesh()
 			model:ScaleTo(model:GetScale() * ratio)
 			table.insert(summary, string.format("scaled x%.3g", ratio))
 		elseif math.abs(ratio - 1) > 0.01 then
-			warn("[RBXMonkey BB] Import is scaled x" .. tostring(1 / ratio) .. " but is not inside a Model; can't rescale")
+			warn("[BBrbx] Import is scaled x" .. tostring(1 / ratio) .. " but is not inside a Model; can't rescale")
 		end
 
 		-- 2. Importer leftovers that break playback
@@ -450,7 +450,7 @@ function DeformBindService:bindImportedMesh()
 		table.insert(summary, "Blender stamping failed: " .. tostring(stampErr))
 	end
 	local message = "Bound " .. meshPart.Name .. (if #summary > 0 then " (" .. table.concat(summary, "; ") .. ")" else "")
-	print("[RBXMonkey BB] " .. message)
+	print("[BBrbx] " .. message)
 	return result(okStamp, message)
 end
 

@@ -1,11 +1,11 @@
-# RBXMonkey BB (fork)
+# BBrbx (fork)
 
 Fork [Cautioned/Blender-Animations-Plugin](https://github.com/Cautioned/Blender-Animations-Plugin) 3.1.3, który zastępuje oficjalny RBXMonkey. Dochodzi swobodna edycja riga w Blenderze, wbudowane Bulk Actions i poprawki błędów.
 
 ## Instalacja
 
-1. **Blender:** w Edit → Preferences → Add-ons odinstaluj „RBXMonkey - Roblox Importer/Exporter” oraz stary dodatek „RBXMonkey Bulk Actions”. Potem zainstaluj `build/rbxmonkey_bb_<wersja>.zip` przez Install from Disk.
-2. **Studio:** uruchom `build_plugin.bat --install`, który kopiuje plik do `%LOCALAPPDATA%\Roblox\Plugins\RBXMonkeyBB.rbxm`. Następnie w Plugins → Manage Plugins wyłącz oficjalny RBXMonkey i usuń z folderu Plugins plik `RBXMonkeyBulkImport.rbxmx`.
+1. **Blender:** w Edit → Preferences → Add-ons odinstaluj „RBXMonkey - Roblox Importer/Exporter” oraz stary dodatek „RBXMonkey Bulk Actions”. Potem zainstaluj `build/bbrbx_<wersja>.zip` przez Install from Disk.
+2. **Studio:** uruchom `build_plugin.bat --install`, który kopiuje plik do `%LOCALAPPDATA%\Roblox\Plugins\BBrbx.rbxm`. Następnie w Plugins → Manage Plugins wyłącz oficjalny RBXMonkey i usuń z folderu Plugins plik `RBXMonkeyBulkImport.rbxmx`.
 
 Porty zostają te same (31337), a stare pliki `.blend` i rigi działają bez zmian.
 
@@ -15,7 +15,7 @@ Porty zostają te same (31337), a stare pliki `.blend` i rigi działają bez zmi
 - W Studio: zakładka Rigging → **Push Rig from Blender**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
 
 **Z siatkami skinned** (łuk, kusza, cokolwiek, co się wygina):
-1. Blender: panel RBXMonkey → **RBXMonkey BB** → **Export Deform FBX**.
+1. Blender: panel RBXMonkey → **BBrbx** → **Export Deform FBX**.
 2. Studio: Home → Import 3D, z domyślnymi ustawieniami.
 3. Studio: Rigging → **Bind Imported Mesh**.
 
@@ -33,7 +33,7 @@ Zakładka Player → **📦 Bulk Actions (BB)**:
 - import wszystkich akcji z Blendera jako osobnych KeyframeSequence w AnimSaves,
 - upload z zachowaniem ID i ModuleScript `AnimationIds` z mapą nazwa → id,
 - zaznaczanie tylko akcji zmienionych od ostatniego uploadu,
-- nadpisywane zapisy lądują w `ServerStorage/RBXMonkeyBB_AnimBackups`.
+- nadpisywane zapisy lądują w `ServerStorage/BBrbx_AnimBackups`.
 
 Priorytet, loop i nazwę docelową ustawisz dla każdej akcji w panelu BB w Blenderze.
 
@@ -51,7 +51,7 @@ Rigging → **Rig Doctor: Scan** sprawdza zaznaczony rig albo cały folder z rig
 
 ## Naprawione błędy
 
-- Kamera nie trzyma się już starego riga po zmianie riga. Śledzi część po nazwie, przepina się na nowy rig albo odpina. Działa też na Bone'ach i przywraca poprzednie ustawienia kamery. Jest skrót „RBXMonkey BB: Attach/Detach Camera”.
+- Kamera nie trzyma się już starego riga po zmianie riga. Śledzi część po nazwie, przepina się na nowy rig albo odpina. Działa też na Bone'ach i przywraca poprzednie ustawienia kamery. Jest skrót „BBrbx: Attach/Detach Camera”.
 - Zaznaczenie podmodelu broni z resztkowym AnimationController wybiera rig nadrzędny.
 - Legacy export nie przełącza aktywnego riga na tymczasowy klon.
 - Nowa karta riga nie dziedziczy stanu poprzedniego riga. Tryb multi-rig nie zatrzymuje innych otwartych rigów.

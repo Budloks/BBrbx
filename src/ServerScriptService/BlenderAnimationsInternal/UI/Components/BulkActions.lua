@@ -114,7 +114,7 @@ function BulkActions.create(services: any, layoutOrder: number)
 			busy:set(false)
 			if not ok then
 				status:set("Error: " .. tostring(result))
-				warn("[RBXMonkey BB] " .. tostring(result))
+				warn("[BBrbx] " .. tostring(result))
 			else
 				status:set(result.message)
 				refresh()
@@ -133,7 +133,7 @@ function BulkActions.create(services: any, layoutOrder: number)
 	end)
 
 	return VerticalCollapsibleSection({
-		Text = "📦 Bulk Actions (BB)",
+		Text = "📦 Bulk Actions (BBrbx)",
 		Collapsed = true,
 		LayoutOrder = layoutOrder,
 		[Children] = {

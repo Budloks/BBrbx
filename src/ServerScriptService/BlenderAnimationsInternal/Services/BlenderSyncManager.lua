@@ -112,7 +112,7 @@ local function buildTargetBoneRestCalibration(activeRig: any): any?
 		frames[rootName] = { kind = "Root", part = { CFrame.identity:GetComponents() } }
 		local ok, err = pcall(walk, root, CFrame.identity)
 		if not ok then
-			warn("[RBXMonkey BB] Could not collect rig rest frames:", err)
+			warn("[BBrbx] Could not collect rig rest frames:", err)
 			frames = {}
 		end
 	end

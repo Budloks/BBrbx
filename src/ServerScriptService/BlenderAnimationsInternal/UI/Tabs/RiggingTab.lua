@@ -351,7 +351,7 @@ function RiggingTab.create(services: any)
 			bbBusy:set(false)
 			if not ok then
 				bbStatus:set("Error: " .. tostring(result))
-				warn("[RBXMonkey BB] " .. tostring(result))
+				warn("[BBrbx] " .. tostring(result))
 			elseif type(result) == "table" and result.message then
 				bbStatus:set(result.message)
 			else
@@ -362,7 +362,7 @@ function RiggingTab.create(services: any)
 
 	return {
 		VerticalCollapsibleSection({
-			Text = "Blender → Studio Rig (BB)",
+			Text = "Blender → Studio Rig (BBrbx)",
 			Collapsed = false,
 			LayoutOrder = 0,
 			[Children] = {

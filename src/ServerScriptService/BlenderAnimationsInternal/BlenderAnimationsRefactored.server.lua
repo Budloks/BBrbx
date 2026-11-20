@@ -315,7 +315,7 @@ table.insert(
 do -- Creates the plugin
 	local pluginToolbar = Toolbar({
 		Plugin = Plugin,
-		Name = "RBXMonkey BB",
+		Name = "BBrbx",
 	})
 
 	local importClipboardAction = Plugin:CreatePluginAction(
@@ -335,8 +335,8 @@ do -- Creates the plugin
 
 	-- BB fork: bindable shortcut (File > Advanced > Customize Shortcuts)
 	local toggleCameraAction = Plugin:CreatePluginAction(
-		"RBXMonkeyBB_ToggleCamera",
-		"RBXMonkey BB: Attach/Detach Camera",
+		"BBrbx_ToggleCamera",
+		"BBrbx: Attach/Detach Camera",
 		"Attach the camera to the active rig's CameraBone/Head (or the picked part), or detach it",
 		""
 	)
@@ -776,7 +776,7 @@ do -- Creates the plugin
 		return Widget({
 			Plugin = Plugin,
 			Id = "BlenderAnimationsMain",
-			Name = "RBXMonkey BB",
+			Name = "BBrbx",
 			InitialDockTo = State.dockSide:get(),
 			InitialEnabled = false,
 			ForceInitialEnabled = false,
