@@ -95,10 +95,10 @@ class RbxAnimationsAutoDetectContent(bpy.types.Operator):
 
 # Define bl_info directly to avoid import issues
 bl_info = {
-    "name": "Roblox Animations Importer/Exporter",
+    "name": "RBXMonkey BB - Roblox Importer/Exporter",
     "description": "Plugin for importing roblox rigs and exporting animations.",
     "author": "Cautioned",
-    "version": (3, 1, 3),
+    "version": (3, 2, 0),
     "blender": (2, 80, 0),
     "location": "View3D > Toolbar",
 }

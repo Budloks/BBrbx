@@ -266,7 +266,7 @@ table.insert(
 do -- Creates the plugin
 	local pluginToolbar = Toolbar({
 		Plugin = Plugin,
-		Name = "RBXMonkey (formerly Blender Animations)",
+		Name = "RBXMonkey BB",
 	})
 
 	local importClipboardAction = Plugin:CreatePluginAction(
@@ -708,7 +708,7 @@ do -- Creates the plugin
 		return Widget({
 			Plugin = Plugin,
 			Id = "BlenderAnimationsMain",
-			Name = "RBXMonkey (formerly Blender Animations)",
+			Name = "RBXMonkey BB",
 			InitialDockTo = State.dockSide:get(),
 			InitialEnabled = false,
 			ForceInitialEnabled = false,
