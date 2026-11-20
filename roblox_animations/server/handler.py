@@ -45,6 +45,10 @@ class AnimationHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET requests"""
+        from . import bb_routes
+
+        if bb_routes.handle(self, "GET"):
+            return
         if self.path.startswith("/animation_status"):
             query_components = urllib.parse.parse_qs(
                 urllib.parse.urlparse(self.path).query
@@ -219,6 +223,10 @@ class AnimationHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         """Handle POST requests for importing animations from Roblox"""
+        from . import bb_routes
+
+        if bb_routes.handle(self, "POST"):
+            return
         if self.path.startswith("/export_animation_delta/"):
             parsed_url = urllib.parse.urlparse(self.path)
             armature_name = urllib.parse.unquote_plus(parsed_url.path.split("/")[-1])

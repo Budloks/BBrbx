@@ -284,6 +284,41 @@ function BlenderSyncManager:stopLiveSyncing()
 	end
 end
 
+-- BB fork: fresh rest data for any Rig object (used after Push Rig / Bind)
+function BlenderSyncManager:buildRestCalibration(rig: any): any?
+	return buildTargetBoneRestCalibration(rig)
+end
+
+function BlenderSyncManager:invalidateRestCalibration()
+	self.restCalibrationRig = nil
+	self.restCalibration = nil
+end
+
+-- BB fork: the armature that belongs to the active rig. Uses the explicit
+-- selection first, then "__<RigName>_Armature" (the importer's naming), then
+-- an armature named like the rig.
+function BlenderSyncManager:resolveArmatureName(): string?
+	local selected = State.selectedArmature:get()
+	if selected and (selected :: any).name then
+		return (selected :: any).name
+	end
+	local rigModel = State.activeRigModel
+	if not rigModel then
+		return nil
+	end
+	local wanted = { "__" .. rigModel.Name .. "_Armature", rigModel.Name, rigModel.Name .. "_Armature" }
+	local available = State.availableArmatures:get() or {}
+	for _, candidate in ipairs(wanted) do
+		for _, arm in ipairs(available) do
+			if arm.name == candidate then
+				return candidate
+			end
+		end
+	end
+	-- Not listed yet: still try the importer's naming, Blender will report if it's missing
+	return wanted[1]
+end
+
 function BlenderSyncManager:_getRestCalibration(): any?
 	if self.restCalibrationRig ~= State.activeRig then
 		self.restCalibrationRig = State.activeRig

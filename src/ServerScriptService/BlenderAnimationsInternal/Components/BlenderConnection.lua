@@ -283,4 +283,69 @@ function BlenderConnection:GetBoneRest(port: number, armatureName: string)
 	return data
 end
 
+-- BB fork: generic call for /bb/ routes. Returns (ok, bodyOrJson, errorMessage).
+-- `decodeJson=false` returns the raw body (e.g. zlib animation payload).
+function BlenderConnection:BBRequest(
+	port: number,
+	method: string,
+	path: string,
+	query: { [string]: string }?,
+	body: any?,
+	decodeJson: boolean?
+): (boolean, any, string?)
+	if type(port) ~= "number" or port <= 0 then
+		return false, nil, "Invalid Blender port"
+	end
+	local url = string.format("http://localhost:%d%s", port, path)
+	if query then
+		local parts = {}
+		for key, value in pairs(query) do
+			if value ~= nil and value ~= "" then
+				table.insert(parts, key .. "=" .. self.HttpService:UrlEncode(tostring(value)))
+			end
+		end
+		if #parts > 0 then
+			url ..= "?" .. table.concat(parts, "&")
+		end
+	end
+	local ok, response = pcall(function()
+		return self.HttpService:RequestAsync({
+			Url = url,
+			Method = method :: HttpMethod,
+			Body = if body ~= nil then self.HttpService:JSONEncode(body) else nil,
+			Headers = {
+				["Accept"] = if decodeJson == false then "application/octet-stream" else "application/json",
+				["Content-Type"] = "application/json",
+			},
+			Compress = Enum.HttpCompression.None,
+		})
+	end)
+	if not ok or not response then
+		return false, nil, "Can't reach Blender on port " .. tostring(port) .. " (is the RBXMonkey server running?)"
+	end
+	if not response.Success then
+		local message = response.StatusMessage
+		local decodedOk, decoded = pcall(function()
+			return self.HttpService:JSONDecode(response.Body)
+		end)
+		if decodedOk and type(decoded) == "table" and decoded.message then
+			message = decoded.message
+		end
+		if response.StatusCode == 404 and not decodedOk then
+			message = "Blender add-on is not the BB fork (missing " .. path .. ")"
+		end
+		return false, nil, tostring(message)
+	end
+	if decodeJson == false then
+		return true, response.Body, nil
+	end
+	local decodedOk, decoded = pcall(function()
+		return self.HttpService:JSONDecode(response.Body)
+	end)
+	if not decodedOk then
+		return false, nil, "Invalid JSON from Blender: " .. tostring(decoded)
+	end
+	return true, decoded, nil
+end
+
 return BlenderConnection

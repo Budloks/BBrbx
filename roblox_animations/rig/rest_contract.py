@@ -59,14 +59,32 @@ def is_stamped(bone) -> bool:
     return all(key in data_bone for key in STAMP_KEYS)
 
 
+def is_copied_duplicate(bone) -> bool:
+    """True for a bone duplicated in Blender (Shift+D copies the Roblox props).
+
+    Its rbx_source_name points at a DIFFERENT bone that still exists under that
+    exact name, so the props describe that other bone, not this one.
+    """
+    data_bone = getattr(bone, "bone", bone)
+    source = data_bone.get("rbx_source_name")
+    if not source or source == data_bone.name:
+        return False
+    armature = data_bone.id_data
+    return armature is not None and source in armature.bones
+
+
+def channel_name(bone) -> str:
+    """Roblox channel name for any bone (shared by sampler, hierarchy and layout)."""
+    data_bone = getattr(bone, "bone", bone)
+    if data_bone.name.startswith("__RBX_STRUCTURAL__") or is_copied_duplicate(data_bone):
+        # Structural duplicates and Blender copies keep their unique Blender name
+        return data_bone.name
+    return str(data_bone.get("rbx_source_name") or data_bone.name)
+
+
 def roblox_name(bone) -> str:
     """Name of the Roblox channel a bone drives."""
-    data_bone = getattr(bone, "bone", bone)
-    name = data_bone.get("rbx_source_name") or data_bone.name
-    if data_bone.name.startswith("__RBX_STRUCTURAL__"):
-        # Structural duplicates must keep their unique name
-        return data_bone.name
-    return str(name)
+    return channel_name(bone)
 
 
 def joint_frame(data_bone) -> Matrix:
@@ -272,7 +290,7 @@ def is_exported_bone(ao, data_bone, deformed: Optional[set] = None) -> bool:
     flag = data_bone.get(EXPORT_PROP)
     if flag is not None:
         return bool(flag)
-    if is_stamped(data_bone):
+    if is_stamped(data_bone) and not is_copied_duplicate(data_bone):
         return True
     if deformed is None:
         deformed = _deformed_bone_names(ao)

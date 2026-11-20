@@ -227,11 +227,7 @@ def extract_bone_hierarchy(armature: "bpy.types.Object") -> Dict[str, Optional[s
     # BB fork: report Roblox channel names and Roblox parents. Studio re-parents
     # its rig parts by these names, so Blender-only names/parents (renamed bones,
     # helper bones in between) must not leak into it.
-    def channel_name(b) -> str:
-        source = b.get("rbx_source_name")
-        if source and not b.name.startswith("__RBX_STRUCTURAL__"):
-            return str(source)
-        return b.name
+    from ..rig.rest_contract import channel_name
 
     for bone in armature.data.bones:
         if is_face_control_bone(bone):

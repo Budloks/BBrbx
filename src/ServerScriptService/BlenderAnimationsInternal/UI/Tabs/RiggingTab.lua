@@ -337,7 +337,64 @@ function RiggingTab.create(services: any)
 		end
 	end)
 
+	-- BB fork: Blender -> Studio rig section
+	local bbStatus = Value("")
+	local bbBusy = Value(false)
+	local function runBB(label: string, fn: () -> any)
+		if bbBusy:get() then
+			return
+		end
+		bbBusy:set(true)
+		bbStatus:set(label .. "…")
+		task.spawn(function()
+			local ok, result = pcall(fn)
+			bbBusy:set(false)
+			if not ok then
+				bbStatus:set("Error: " .. tostring(result))
+				warn("[RBXMonkey BB] " .. tostring(result))
+			elseif type(result) == "table" and result.message then
+				bbStatus:set(result.message)
+			else
+				bbStatus:set("Done")
+			end
+		end)
+	end
+
 	return {
+		VerticalCollapsibleSection({
+			Text = "Blender → Studio Rig (BB)",
+			Collapsed = false,
+			LayoutOrder = 0,
+			[Children] = {
+				Button({
+					Text = "Push Rig from Blender",
+					Size = UDim2.new(1, 0, 0, 30),
+					Enabled = Computed(function()
+						return State.activeRigExists:get() and not bbBusy:get()
+					end),
+					Activated = function(): nil
+						runBB("Pushing rig", function()
+							return services.rigPushService:pushRig()
+						end)
+						return nil
+					end,
+					[OnEvent("MouseEnter")] = function()
+						activeHint:set(
+							"Creates bones/joints you added in Blender and updates rests you edited, then stamps the Blender bones so animations export 1:1. Skinned bones come in with Export Deform + Bind Imported Mesh."
+						)
+					end,
+					[OnEvent("MouseLeave")] = function()
+						activeHint:set("")
+					end,
+				}) :: any,
+				Label({
+					Text = bbStatus,
+					TextWrapped = true,
+					TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
+					TextSize = 14,
+				}) :: any,
+			},
+		}),
 		VerticalCollapsibleSection({
 			Text = "Export Rig",
 			Collapsed = false,
