@@ -187,7 +187,8 @@ function BlenderConnection:ExportAnimation(port: number, animationData: any, tar
 			Url = url,
 			Method = "POST" :: HttpMethod,
 			Headers = {
-				["Content-Type"] = "application/octet-stream",
+				-- BB fork: the body is plain JSON text, label it as such
+				["Content-Type"] = "application/json",
 			},
 			Body = encoded,
 			Compress = Enum.HttpCompression.None, -- Disable compression for faster local transfers

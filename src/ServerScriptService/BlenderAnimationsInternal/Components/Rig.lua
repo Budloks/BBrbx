@@ -491,7 +491,10 @@ function Rig:buildBoneHierarchy(allBones)
 					return nil
 				end
 
-				if parentInstance and parentInstance:IsA("Instance") then
+				-- BB fork: only fall back to a name match for non-part containers
+				-- (Folder/Attachment). A BasePart parent that is not in the rig must
+				-- not be swapped for some other part that happens to share its name.
+				if parentInstance and not parentInstance:IsA("BasePart") then
 					parentPart = findInHierarchy(self.root, parentInstance.Name)
 				end
 			end

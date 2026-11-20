@@ -84,6 +84,8 @@ local State = {
     heartbeat = { conn = nil :: RBXScriptConnection? },
 
     selectedPart = Value(nil),
+    -- BB fork: camera target is tracked by name and re-resolved per rig
+    selectedPartName = Value(nil :: string?),
     isCameraAttached = Value(false),
     fovValue = Value(game.Workspace.CurrentCamera.FieldOfView),
     

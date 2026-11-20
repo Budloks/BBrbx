@@ -182,12 +182,21 @@ local function updateActiveRigFromSelection()
 		if #selection > 0 then
 			local selectedObject = selection[1]
 
+			-- BB fork: the legacy rig export selects its temporary clone (which still
+			-- has a Humanoid); never treat that as a new active rig.
+			for _, metaPart in ipairs(State.metaParts) do
+				if selectedObject == metaPart or selectedObject:IsDescendantOf(metaPart) then
+					return
+				end
+			end
+
 			if rigManager:isKeyframeSequence(selectedObject) then
 				State.lastSelectionWasKeyframeSequence = true
 				return
 			end
 
 			if rigManager:isValidRig(selectedObject) then
+				selectedObject = rigManager:resolveRigForSelection(selectedObject)
 				if State.lastSelectionWasKeyframeSequence then
 					State.lastSelectionWasKeyframeSequence = false
 					return
@@ -216,8 +225,12 @@ local function updateActiveRigFromSelection()
 				State.activeRigExists:set(true)
 				rigManager:clearWarnings()
 				State.loadingEnabled:set(true)
-				State.activeRigModel = selectedObject
-				State.activeRig = nil
+				-- BB fork: clear every per-rig field before snapshotting, otherwise the
+				-- new rig's session briefly holds the previous rig's bone weights,
+				-- saved animations and warnings (visible if you switch tabs while it loads).
+				RigTabs._resetRigState(State, selectedObject)
+				State.activeSessionRig:set(selectedObject)
+				State.loadingEnabled:set(true)
 				rigSessionManager:saveActive()
 
 				task.spawn(function()
@@ -232,6 +245,15 @@ local function updateActiveRigFromSelection()
 		end
 	end
 end
+
+-- BB fork: keep the camera on the active rig. Every rig change (selection, tab
+-- switch, tab close) goes through activeSessionRig, so one observer covers all.
+table.insert(
+	State.observers,
+	Observer(State.activeSessionRig):onChange(function()
+		cameraManager:onActiveRigChanged(State.activeSessionRig:get())
+	end)
+)
 
 -- Start live sync if enabled when an armature is selected
 table.insert(

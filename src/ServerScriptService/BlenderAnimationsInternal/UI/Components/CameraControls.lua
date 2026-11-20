@@ -23,7 +23,7 @@ local CameraControls = {}
 function CameraControls.createCameraControlsUI(services: any)
 	return VerticalCollapsibleSection({
 		Text = "🎥 Camera Controls",
-		Collapsed = not State.activeRigExists:get(),
+		Collapsed = false,
 		LayoutOrder = 2,
 		[Children] = {
 			Label({
@@ -36,9 +36,17 @@ function CameraControls.createCameraControlsUI(services: any)
 				[Children] = {
 					Dropdown({
 						Options = services and services.cameraManager and services.cameraManager:getPartsList() or Value({}),
+						Value = State.selectedPartName,
 						OnSelected = function(newItem: any): nil
-							if State.activeRigModel then
-								State.selectedPart:set(State.activeRigModel:FindFirstChild(newItem))
+							State.selectedPartName:set(newItem)
+							local cameraManager = services and services.cameraManager
+							if cameraManager then
+								local rigModel = State.activeSessionRig:get() or State.activeRigModel
+								State.selectedPart:set(cameraManager:resolve(rigModel, newItem))
+								-- Switching the target while attached moves the camera right away
+								if State.isCameraAttached:get() then
+									cameraManager:attachCameraByName(newItem)
+								end
 							end
 							return nil
 						end,
@@ -58,7 +66,8 @@ function CameraControls.createCameraControlsUI(services: any)
 								if State.isCameraAttached:get() then
 									services.cameraManager:detachCamera()
 								else
-									services.cameraManager:attachCameraToPart(State.selectedPart:get())
+									-- Resolve against the CURRENT rig at click time (BB fork camera fix)
+									services.cameraManager:attachCameraByName(State.selectedPartName:get())
 								end
 							end
 							return nil

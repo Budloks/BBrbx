@@ -30,6 +30,51 @@ function RigManager:isValidRig(object: any): boolean
 			~= nil
 end
 
+-- BB fork: a weapon/attachment sub-model often keeps a leftover AnimationController
+-- from import. When such a model is jointed into an enclosing rig, the enclosing rig
+-- is what the user means, so resolve the selection to the outermost connected rig.
+function RigManager:resolveRigForSelection(object: Instance): Instance
+	local function jointsInto(inner: Instance, outer: Instance): boolean
+		for _, desc in ipairs(inner:GetDescendants()) do
+			if desc:IsA("JointInstance") then
+				local p0, p1 = (desc :: any).Part0, (desc :: any).Part1
+				for _, p in ipairs({ p0, p1 }) do
+					if p and p:IsDescendantOf(outer) and not p:IsDescendantOf(inner) then
+						return true
+					end
+				end
+			elseif desc:IsA("WeldConstraint") then
+				local wc = desc :: WeldConstraint
+				for _, p in ipairs({ wc.Part0, wc.Part1 }) do
+					if p and p:IsDescendantOf(outer) and not p:IsDescendantOf(inner) then
+						return true
+					end
+				end
+			end
+		end
+		-- Joints living outside the sub-model that reach into it also count
+		for _, desc in ipairs(outer:GetDescendants()) do
+			if desc:IsA("JointInstance") and not desc:IsDescendantOf(inner) then
+				local p0, p1 = (desc :: any).Part0, (desc :: any).Part1
+				if (p0 and p0:IsDescendantOf(inner)) or (p1 and p1:IsDescendantOf(inner)) then
+					return true
+				end
+			end
+		end
+		return false
+	end
+
+	local current = object
+	local ancestor = object.Parent
+	while ancestor and ancestor ~= game do
+		if self:isValidRig(ancestor) and (ancestor :: Model).PrimaryPart and jointsInto(current, ancestor) then
+			current = ancestor
+		end
+		ancestor = ancestor.Parent
+	end
+	return current
+end
+
 function RigManager:isKeyframeSequence(object: any): boolean
 	return typeof(object) == "Instance" and object:IsA("KeyframeSequence")
 end
@@ -353,8 +398,13 @@ function RigManager:setRig(rigModel: Types.RigModelType?): any
 	end
 
 	if previousRigModel and previousRigModel ~= rigModel then
-		-- Stop only the previous rig's track, leave other rigs playing
-		self.playbackService:stopRigTrack(previousRigModel)
+		-- Stop only the previous rig's track, leave other rigs playing.
+		-- BB fork: in multi-rig mode the previous rig is still an open tab, so keep it playing.
+		local sessions = State.rigSessionManager
+		local stillOpen = sessions and sessions.contains and sessions:contains(previousRigModel)
+		if not stillOpen then
+			self.playbackService:stopRigTrack(previousRigModel)
+		end
 	end
 
 	-- Stop the incoming rig's track if any (it's being rebuilt from scratch)
@@ -474,7 +524,9 @@ function RigManager:setRig(rigModel: Types.RigModelType?): any
 	
 	-- Update camera manager parts list if available
 	if self.cameraManager then
-		self.cameraManager:updatePartsList()
+		-- BB fork: now that the Rig object exists, refresh names and re-resolve the
+		-- camera target against this rig (fixes camera sticking to the old rig).
+		self.cameraManager:onActiveRigChanged(rigModel)
 	end
 
 	State.loadingEnabled:set(false)
