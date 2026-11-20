@@ -75,6 +75,16 @@ def _resolve_deform_translation_scale(export_info):
 
 def _find_animation_pose_bone(armature, bone_name, is_deform_rig):
     exact = armature.pose.bones.get(bone_name)
+    if exact is None:
+        # BB fork: channels are Roblox names; a bone renamed in Blender still
+        # carries its Roblox name in rbx_source_name.
+        for candidate in armature.pose.bones:
+            if (
+                candidate.bone.get("rbx_source_name") == bone_name
+                and not candidate.name.startswith("__RBX_STRUCTURAL__")
+            ):
+                exact = candidate
+                break
     if not is_deform_rig:
         return exact
 
@@ -591,7 +601,15 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
 
                     # --- Matrix Calculation ---
                     # Check if this bone has Motor6D properties (from rig build)
-                    is_deform_bone = is_deform_rig and bool(
+                    # BB fork: decide by the Roblox joint type, not by use_deform.
+                    # A skinned Motor6D part is exported through the exact Motor6D
+                    # path, so importing it through the 180-degree deform swizzle
+                    # broke Studio -> Blender -> Studio round trips.
+                    joint_type = pose_bone.bone.get("rbx_joint_type")
+                    stamped_motor = joint_type not in (None, "Bone") and all(
+                        key in pose_bone.bone for key in ("transform", "transform1", "nicetransform")
+                    )
+                    is_deform_bone = is_deform_rig and not stamped_motor and bool(
                         pose_bone.bone.get("rbx_is_deform_bone", False)
                         or pose_bone.bone.use_deform
                     )
