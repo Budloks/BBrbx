@@ -344,15 +344,16 @@ do -- Creates the plugin
 	State.helpWidgetEnabled = Value(false)
 	
 	-- Update image based on current theme using themeProvider like PlaybackControls
+	local Studio = settings().Studio
+	-- BBrbx logo (assets/bbrbx-icon-white.png / -dark.png): white for the dark theme, dark for the light one
+	local ICON_FOR_DARK_THEME = "rbxassetid://94842823053587"
+	local ICON_FOR_LIGHT_THEME = "rbxassetid://84525378854113"
 	local function updateToolbarImage()
-		local testColor = themeProvider:GetColor(Enum.StudioStyleGuideColor.MainBackground)
-		-- Dark theme has darker background colors
-		if testColor and testColor.R and testColor.G and testColor.B and testColor.R < 0.2 and testColor.G < 0.2 and testColor.B < 0.2 then
-			State.toolbarButtonImage:set("rbxasset://textures/advancedMove_joint.png") -- BBrbx (built-in Studio icon)
-		else
-			State.toolbarButtonImage:set("rbxasset://textures/advancedMove_joint.png")
-		end
+		local bg = Studio.Theme:GetColor(Enum.StudioStyleGuideColor.MainBackground)
+		local dark = (bg.R + bg.G + bg.B) / 3 < 0.5
+		State.toolbarButtonImage:set(dark and ICON_FOR_DARK_THEME or ICON_FOR_LIGHT_THEME)
 	end
+	table.insert(State.connections, Studio.ThemeChanged:Connect(updateToolbarImage))
 	
 	-- Initial update
 	updateToolbarImage()
