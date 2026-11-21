@@ -1,5 +1,5 @@
 """
-Server module for the Roblox Animations Blender Addon.
+Server module for the BBrbx Blender add-on.
 
 This module handles the HTTP server for live sync with Roblox Studio.
 """

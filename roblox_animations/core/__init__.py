@@ -1,5 +1,5 @@
 """
-Core module for the Roblox Animations Blender Addon.
+Core module for the BBrbx Blender add-on.
 
 This module contains shared utilities, constants, and data structures
 used throughout the addon.

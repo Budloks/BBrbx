@@ -1,6 +1,6 @@
 # pyright: reportAttributeAccessIssue=false, reportOptionalMemberAccess=false
 """
-Utility functions for the Roblox Animations Blender Addon.
+Utility functions for the BBrbx Blender add-on.
 """
 
 import bpy

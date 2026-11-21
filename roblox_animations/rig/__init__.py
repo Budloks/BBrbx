@@ -1,5 +1,5 @@
 """
-Rig module for the Roblox Animations Blender Addon.
+Rig module for the BBrbx Blender add-on.
 
 Rig creation, bone management and constraints, plus the asset-side
 subsystems: FileMesh fetching, terrain meshing, texture/material

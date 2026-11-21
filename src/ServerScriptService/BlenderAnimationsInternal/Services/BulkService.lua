@@ -2,7 +2,7 @@
 
 -- BB fork: bulk import every Blender action of the active rig as its own
 -- KeyframeSequence, and bulk upload saves. Replaces the separate
--- "RBXMonkey Bulk Import" plugin + "RBXMonkey Bulk Actions" add-on.
+-- the old standalone bulk import plugin and bulk actions add-on.
 --
 -- Every action goes through the regular import path (same rest calibration,
 -- adoption, modifiers and KeyframeSequence builder as "Import from Blender").

@@ -1,5 +1,5 @@
 """
-UI module for the Roblox Animations Blender Addon.
+UI module for the BBrbx Blender add-on.
 
 This module contains all UI panels, properties, and interface components.
 """

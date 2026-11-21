@@ -1,5 +1,5 @@
 """
-Animation module for the Roblox Animations Blender Addon.
+Animation module for the BBrbx Blender add-on.
 
 This module handles animation serialization, baking, and import/export logic.
 """

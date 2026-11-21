@@ -1,5 +1,5 @@
 """
-Constants and configuration for the Roblox Animations Blender Addon.
+Constants and configuration for the BBrbx Blender add-on.
 """
 
 from typing import List, Optional

@@ -1,11 +1,11 @@
 schema_version = "1.0.0"
 
-# Roblox Animations Blender Addon Manifest
+# BBrbx Blender add-on manifest
 id = "roblox_animations_importer_exporter"
 version = "3.2.0"
-name = "BBrbx - Roblox Importer/Exporter"
-tagline = "RBXMonkey fork with free rig editing, bulk actions and fixes"
-maintainer = "Cautioned"
+name = "BBrbx"
+tagline = "Roblox rigs and animations, Blender to Studio and back"
+maintainer = "Budloks"
 type = "add-on"
 
 # Offline Zstandard support for the Python runtimes used by Blender 4.2+.
@@ -40,7 +40,8 @@ license = [
 
 # Copyright information
 copyright = [
-  "2025 Cautioned",
+  "2025 Cautioned (RBXMonkey, original work)",
+  "2026 Budloks (BBrbx)",
 ]
 
 # Tags for categorization

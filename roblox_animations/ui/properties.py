@@ -314,7 +314,7 @@ def register_properties():
     bpy.utils.register_class(RobloxAnimationSettings)
     bpy.types.Scene.rbx_anim_settings = bpy.props.PointerProperty(
         type=RobloxAnimationSettings,
-        name="Roblox Animations Settings",
+        name="BBrbx Settings",
     )
     bpy.types.Object.rbx_face_controls = bpy.props.PointerProperty(
         type=RobloxFaceControlState,

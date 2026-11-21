@@ -1,6 +1,10 @@
 # BBrbx (fork)
 
-Fork [Cautioned/Blender-Animations-Plugin](https://github.com/Cautioned/Blender-Animations-Plugin) 3.1.3, który zastępuje oficjalny RBXMonkey. Dochodzi swobodna edycja riga w Blenderze, wbudowane Bulk Actions i poprawki błędów.
+Blender ⇄ Roblox Studio: rigi i animacje. Swobodna edycja riga w Blenderze, wbudowane Bulk Actions, automatyczna weryfikacja importu i poprawki błędów. Zastępuje oficjalny plugin (te same porty).
+
+**Gdzie co jest:**
+- Blender: View3D → Sidebar (N) → zakładka **BBrbx**: status połączenia i armatura na górze, pod spodem sekcje Import & Rig Setup, Rig, Skinned Meshes → Roblox, Face Controls, Animation, UGC Emote Validation, Roblox Account, About.
+- Studio: przycisk **BBrbx** na pasku pluginów, zakładki **Animate / Rig / Tools / Settings**.
 
 ## Instalacja
 
@@ -12,30 +16,30 @@ Porty zostają te same (31337), a stare pliki `.blend` i rigi działają bez zmi
 ## Workflow: edytuję rig w Blenderze → Roblox
 
 **Bez siatek skinned** (dodałeś lub przesunąłeś kości, stawy, bełt, rączkę…):
-- W Studio: zakładka Rigging → **Push Rig from Blender**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
+- W Studio: zakładka Rig → **Push Rig**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
 
 **Z siatkami skinned** (łuk, kusza, cokolwiek, co się wygina):
-1. Blender: panel RBXMonkey → **BBrbx** → **Export Deform FBX**.
+1. Blender: Sidebar → BBrbx → **Skinned Meshes → Roblox** → **Export Deform FBX**.
 2. Studio: Home → Import 3D, z domyślnymi ustawieniami.
-3. Studio: Rigging → **Bind Imported Mesh**.
+3. Studio: Rig → **Bind Imported Mesh**.
 
 Bind sam poprawia skalę, usuwa zagnieżdżony AnimationController, stawia siatkę na spoczynku z Blendera, przepina kości pod rig, zachowuje teksturę i odkłada zastąpione części do ServerStorage.
 
 Potem animujesz i importujesz normalnie. Kości dodane w Blenderze dostają przy eksporcie prawdziwy spoczynek ze Studio, więc koniec ze zgadywaniem osi (dawny obrót o 180° wokół Y).
 
-**Kości pomocnicze** (IK, pole, kontrolki) nie trafiają do Robloxa. W panelu BB możesz to zmienić dla wybranej kości: Always / Auto / Never.
+**Kości pomocnicze** (IK, pole, kontrolki) nie trafiają do Robloxa. W sekcji Rig (BBrbx) możesz to zmienić dla wybranej kości: Always / Auto / Never.
 
 **Przebudowa riga** (Generate rig) ma teraz opcję **Keep my bones**: zachowuje twoje kości, constrainty i akcję.
 
 ## Bulk Actions (wbudowane)
 
-Zakładka Player → **📦 Bulk Actions (BB)**:
+Zakładka Animate → **📦 Bulk Actions**:
 - import wszystkich akcji z Blendera jako osobnych KeyframeSequence w AnimSaves,
 - upload z zachowaniem ID i ModuleScript `AnimationIds` z mapą nazwa → id,
 - zaznaczanie tylko akcji zmienionych od ostatniego uploadu,
 - nadpisywane zapisy lądują w `ServerStorage/BBrbx_AnimBackups`.
 
-Priorytet, loop i nazwę docelową ustawisz dla każdej akcji w panelu BB w Blenderze.
+Priorytet, loop i nazwę docelową ustawisz dla każdej akcji w sekcji Animation (BBrbx) w Blenderze.
 
 ## Automatyczna kontrola importu
 
@@ -47,7 +51,7 @@ Po każdym imporcie Studio po cichu sprawdza, czy rig odtwarza animację tak sam
 
 ## Rig Doctor
 
-Rigging → **Rig Doctor: Scan** sprawdza zaznaczony rig albo cały folder z rigami. Szuka zagnieżdżonych AnimationController/Humanoid, braku PrimaryPart, zduplikowanych nazw kości i pozostałości importera. **Fix All** naprawia bezpieczne przypadki (Ctrl+Z cofa).
+Rig → **Rig Doctor: Scan** sprawdza zaznaczony rig albo cały folder z rigami. Szuka zagnieżdżonych AnimationController/Humanoid, braku PrimaryPart, zduplikowanych nazw kości i pozostałości importera. **Fix All** naprawia bezpieczne przypadki (Ctrl+Z cofa).
 
 ## Naprawione błędy
 
@@ -65,3 +69,7 @@ Rigging → **Rig Doctor: Scan** sprawdza zaznaczony rig albo cały folder z rig
 - `python tools/bb/build_addon.py` buduje paczkę rozszerzenia Blendera.
 - `lune run tools/bb/luau_check.luau` sprawdza kompilację wszystkich plików pluginu.
 - Testy addonu (z repo, bez instalowania) uruchamiasz tak: `blender -b --factory-startup --python tools/bb/blender_bootstrap.py -- unittest:test_rest_contract`.
+
+## Credits
+
+Oparte na RBXMonkey (Blender Animations Plugin) autorstwa Cautioned — [github.com/Cautioned/Blender-Animations-Plugin](https://github.com/Cautioned/Blender-Animations-Plugin). Licencja GPL-3.0, BBrbx jest na tej samej licencji.

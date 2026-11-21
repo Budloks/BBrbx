@@ -1,5 +1,5 @@
 """
-Operators module for the Roblox Animations Blender Addon.
+Operators module for the BBrbx Blender add-on.
 
 This module contains all Blender operators (actions) for the addon.
 """

@@ -1,5 +1,5 @@
 """
-Roblox Animations Blender Addon.
+BBrbx Blender add-on.
 
 Import Roblox rigs/places (.rbxm/.rbxl) and export animations back to
 Roblox Studio, with optional live sync and OAuth-based Studio auth.
@@ -103,12 +103,12 @@ class RbxAnimationsAutoDetectContent(bpy.types.Operator):
 
 # Define bl_info directly to avoid import issues
 bl_info = {
-    "name": "BBrbx - Roblox Importer/Exporter",
+    "name": "BBrbx",
     "description": "Plugin for importing roblox rigs and exporting animations.",
-    "author": "Cautioned",
+    "author": "Budloks",
     "version": (3, 2, 0),
     "blender": (2, 80, 0),
-    "location": "View3D > Toolbar",
+    "location": "View3D > Sidebar > BBrbx",
 }
 
 
@@ -325,7 +325,7 @@ def register():
             bpy.app.timers.register(_bb_autostart_server, first_interval=1.0, persistent=True)
 
     except Exception as e:
-        print(f"Error registering Roblox Animations addon: {e}")
+        print(f"Error registering BBrbx add-on: {e}")
         import traceback
 
         traceback.print_exc()
@@ -408,7 +408,7 @@ def unregister():
             pass
 
     except Exception as e:
-        print(f"Error unregistering Roblox Animations addon: {e}")
+        print(f"Error unregistering BBrbx add-on: {e}")
         import traceback
 
         traceback.print_exc()

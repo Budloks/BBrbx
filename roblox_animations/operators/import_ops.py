@@ -3893,7 +3893,7 @@ class OBJECT_OT_ImportModel(bpy.types.Operator, ImportHelper):
                 {"ERROR"},
                 "This OBJ file does not contain Roblox rig metadata. "
                 "Please use Blender's standard OBJ importer for regular 3D models, "
-                "or export the rig from Roblox Studio using the Roblox Animations plugin.",
+                "or export the rig from Roblox Studio using the BBrbx plugin.",
             )
             return {"CANCELLED"}
 
