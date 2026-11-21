@@ -176,7 +176,7 @@ function PlayerTab.create(services: any)
 						local anims = State.savedAnimations:get() :: any
 						local rows = {}
 						if #anims == 0 then
-							table.insert(rows, Kit.Hint({ Text = "Nothing saved in this rig yet. Use Save to rig.", LayoutOrder = 1 }))
+							table.insert(rows, Kit.Hint({ Text = "Nothing saved in this rig yet. Use Save to rig below.", LayoutOrder = 1 }))
 						end
 						for i, anim in ipairs(anims) do
 							table.insert(rows, savedRow(services, anim, i))
@@ -184,13 +184,6 @@ function PlayerTab.create(services: any)
 						return rows
 					end, Fusion.cleanup),
 				},
-			}),
-			Kit.Button({
-				Text = "Import from Roblox",
-				LayoutOrder = 2,
-				Activated = function()
-					services.animationManager:importAnimationsFromRoblox()
-				end,
 			}),
 		},
 	})

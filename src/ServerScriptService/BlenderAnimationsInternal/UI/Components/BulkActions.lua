@@ -15,6 +15,7 @@ local Children = Fusion.Children
 local Value = Fusion.Value
 local Computed = Fusion.Computed
 local ForValues = Fusion.ForValues
+local OnEvent = Fusion.OnEvent
 local OnChange = Fusion.OnChange
 
 local StudioComponents = script.Parent.Parent.Parent.Components:FindFirstChild("StudioComponents")
@@ -173,73 +174,183 @@ function BulkActions.refreshAll(services: any)
 	end)
 end
 
-local function selectRow(m: any, order: number)
-	local function quick(text: string, o: number, fn: () -> ())
-		return Kit.Button({
-			Text = text,
-			LayoutOrder = o,
-			Size = UDim2.new(0, 0, 1, 0),
-			Activated = fn,
-		})
-	end
-	return Kit.Row({
+local StudioService = game:GetService("StudioService")
+
+local function classIcon(className: string): any
+	local ok, data = pcall(function()
+		return StudioService:GetClassIcon(className)
+	end)
+	return if ok then data else nil
+end
+
+local function tickImage(checked: boolean): string
+	local theme = if settings().Studio.Theme.Name == "Light" then "Light" else "Dark"
+	local file = if checked then "checkBox_checked" else "checkBox_unchecked"
+	return "rbxasset://studio_svg_textures/Lua/Explorer/" .. theme .. "/Standard/" .. file .. "@2x.png"
+end
+
+local function tickBox(checked: any, order: number)
+	return New("ImageLabel")({
+		Name = "Tick",
 		LayoutOrder = order,
-		Height = 24,
-		Gap = 4,
+		BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(16, 16),
+		Image = Computed(function()
+			return tickImage(checked:get())
+		end),
+	})
+end
+
+-- One clickable line: tick, optional class icon, name, dimmed tags on the right.
+local function listLine(props: {
+	Order: number,
+	Checked: any,
+	Text: any,
+	Tags: any?,
+	Icon: string?,
+	Bold: boolean?,
+	Visible: any?,
+	OnToggle: () -> (),
+})
+	local hovering = Value(false)
+	local icon = if props.Icon then classIcon(props.Icon) else nil
+	return New("TextButton")({
+		Name = "Line",
+		LayoutOrder = props.Order,
+		Visible = props.Visible,
+		AutoButtonColor = false,
+		Text = "",
+		Size = UDim2.new(1, 0, 0, 24),
+		BackgroundTransparency = Computed(function()
+			return if hovering:get() then 0 else 1
+		end),
+		BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.Button),
+		[OnEvent("MouseEnter")] = function()
+			hovering:set(true)
+		end,
+		[OnEvent("MouseLeave")] = function()
+			hovering:set(false)
+		end,
+		[OnEvent("Activated")] = props.OnToggle,
 		[Children] = {
-			quick("All", 1, function()
-				m.setAll(function()
-					return true
-				end)
-			end),
-			quick("None", 2, function()
-				m.setAll(function()
-					return false
-				end)
-			end),
-			quick("Changed", 3, function()
-				-- not uploaded yet, or changed in Blender since the last upload
-				m.setAll(function(r)
-					return r.blender and (not r.uploaded or r.changed)
-				end)
-			end),
+			Kit.corner(4),
+			Kit.padding(0, 6),
+			New("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 6),
+			}),
+			tickBox(props.Checked, 1),
+			if icon
+				then New("ImageLabel")({
+					LayoutOrder = 2,
+					BackgroundTransparency = 1,
+					Size = UDim2.fromOffset(16, 16),
+					Image = icon.Image,
+					ImageRectOffset = icon.ImageRectOffset,
+					ImageRectSize = icon.ImageRectSize,
+				})
+				else nil,
+			New("TextLabel")({
+				LayoutOrder = 3,
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, if icon then -110 else -88, 1, 0),
+				Text = props.Text,
+				Font = if props.Bold then Enum.Font.BuilderSansBold else Enum.Font.BuilderSansMedium,
+				TextSize = Kit.TEXT,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				TextColor3 = Kit.color(Enum.StudioStyleGuideColor.MainText),
+			}),
+			New("TextLabel")({
+				LayoutOrder = 4,
+				BackgroundTransparency = 1,
+				Size = UDim2.new(0, 60, 1, 0),
+				Text = props.Tags or "",
+				Font = Enum.Font.BuilderSans,
+				TextSize = Kit.SMALL_TEXT,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				TextColor3 = Kit.color(Enum.StudioStyleGuideColor.DimmedText),
+			}),
 		},
 	})
 end
 
-local function rowList(m: any, order: number, filter: (any) -> boolean, tagsFor: (any) -> { string }, empty: string)
+-- The pick list: a darker panel with an "All" tick on top (all or nothing)
+-- and one line per row that passes `filter`.
+local function pickList(m: any, order: number, filter: (any) -> boolean, tagsFor: (any) -> string, icon: string?, empty: string)
+	local allChecked = Computed(function()
+		local any = false
+		for _, r in ipairs(m.rows:get()) do
+			if filter(r) then
+				any = true
+				if not r.sel:get() then
+					return false
+				end
+			end
+		end
+		return any
+	end)
+	local count = Computed(function()
+		local n = 0
+		for _, r in ipairs(m.rows:get()) do
+			if filter(r) then
+				n += 1
+			end
+		end
+		return n
+	end)
 	return New("Frame")({
-		BackgroundTransparency = 1,
+		Name = "PickList",
+		LayoutOrder = order,
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		LayoutOrder = order,
+		BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.MainBackground),
 		[Children] = {
-			Kit.vlist(4),
-			Computed(function()
-				local shown = {}
-				for _, r in ipairs(m.rows:get()) do
-					if filter(r) then
-						table.insert(shown, r)
+			Kit.corner(6),
+			Kit.stroke(Enum.StudioStyleGuideColor.Border),
+			Kit.padding(4, 4, 4, 4),
+			Kit.vlist(1),
+			listLine({
+				Order = 0,
+				Checked = allChecked,
+				Text = "All",
+				Bold = true,
+				Visible = Computed(function()
+					return count:get() > 0
+				end),
+				OnToggle = function()
+					local target = not allChecked:get()
+					for _, r in ipairs(m.rows:get()) do
+						if filter(r) then
+							r.sel:set(target)
+						end
 					end
-				end
-				if #shown == 0 then
-					return { Kit.Hint({ Text = empty, LayoutOrder = 1 }) }
-				end
-				return {}
-			end, Fusion.cleanup),
+				end,
+			}),
+			Kit.Hint({
+				Text = empty,
+				LayoutOrder = 1,
+				Visible = Computed(function()
+					return count:get() == 0
+				end),
+			}),
 			ForValues(m.rows, function(r: any)
 				local label = r.target
 				if r.target ~= r.name then
 					label ..= " ← " .. r.name
 				end
-				local tags = tagsFor(r)
-				return Checkbox({
-					Value = r.sel,
+				return listLine({
+					Order = 2,
+					Checked = r.sel,
+					Text = label,
+					Tags = tagsFor(r),
+					Icon = icon,
 					Visible = filter(r),
-					Text = if #tags > 0 then label .. "  ·  " .. table.concat(tags, " · ") else label,
-					OnChange = function(v: boolean): nil
-						r.sel:set(v)
-						return nil
+					OnToggle = function()
+						r.sel:set(not r.sel:get())
 					end,
 				})
 			end, Fusion.cleanup),
@@ -260,13 +371,12 @@ function BulkActions.importBody(services: any, layoutOrder: number, visible: any
 		AutomaticSize = Enum.AutomaticSize.Y,
 		[Children] = {
 			Kit.vlist(8),
-			Kit.FieldLabel({ Text = "Actions", LayoutOrder = 0 }),
-			selectRow(m, 1),
-			rowList(m, 2, function(r)
+			Kit.FieldLabel({ Text = "Actions in Blender", LayoutOrder = 0 }),
+			pickList(m, 2, function(r)
 				return r.blender == true
 			end, function(r)
-				return if r.saved then { "Saved" } else {}
-			end, "No actions on this armature in Blender."),
+				return if r.saved then "saved" else ""
+			end, nil, "No actions on this armature in Blender."),
 			Kit.PrimaryButton({
 				Text = "Import selected actions",
 				LayoutOrder = 3,
@@ -335,51 +445,26 @@ function BulkActions.uploadBody(services: any, layoutOrder: number)
 		AutomaticSize = Enum.AutomaticSize.Y,
 		[Children] = {
 			Kit.vlist(8),
-			Kit.FieldLabel({ Text = "Upload several at once", LayoutOrder = 0 }),
-			selectRow(m, 1),
-			rowList(m, 2, function()
-				return true
+			Kit.FieldLabel({ Text = "Local saves (AnimSaves)", LayoutOrder = 0 }),
+			pickList(m, 2, function(r)
+				return r.saved == true
 			end, function(r)
-				local tags = {}
-				if r.blender then
-					table.insert(tags, "Blender")
-				end
-				if r.saved then
-					table.insert(tags, "Saved")
-				end
 				if r.uploaded then
-					table.insert(tags, if r.changed then "Changed" else "Uploaded")
+					return if r.changed then "changed" else "uploaded"
 				end
-				return tags
-			end, "Nothing to upload yet. Import actions or save an animation first."),
-			Kit.Row({
+				return ""
+			end, "KeyframeSequence", "Nothing saved in this rig yet. Import actions or use Save to rig."),
+			Kit.PrimaryButton({
+				Text = "Upload selected",
 				LayoutOrder = 3,
-				[Children] = {
-					Kit.Button({
-						Text = "Import + upload",
-						LayoutOrder = 1,
-						Size = UDim2.new(0, 0, 1, 0),
-						Enabled = m.enabledIdle,
-						Activated = function()
-							m.run("Importing and uploading", function(progress)
-								return bulk:importActions(m.selected(function(r)
-									return r.blender
-								end), true, progress)
-							end)
-						end,
-					}),
-					Kit.Button({
-						Text = "Upload saves",
-						LayoutOrder = 2,
-						Size = UDim2.new(0, 0, 1, 0),
-						Enabled = m.enabledIdle,
-						Activated = function()
-							m.run("Uploading", function(progress)
-								return bulk:uploadSaved(m.selected(), progress)
-							end)
-						end,
-					}),
-				},
+				Enabled = m.enabledIdle,
+				Activated = function()
+					m.run("Uploading", function(progress)
+						return bulk:uploadSaved(m.selected(function(r)
+							return r.saved
+						end), progress)
+					end)
+				end,
 			}),
 			Kit.Hint({ Text = m.status, LayoutOrder = 4 }),
 			VerticalCollapsibleSection({
