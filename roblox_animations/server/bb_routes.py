@@ -4,6 +4,7 @@ BB fork HTTP routes (all under /bb/). The animation server pumps requests from a
 Blender timer on the main thread, so these handlers may use bpy directly.
 
 GET  /bb/ping
+POST /bb/reload_addon                       -> reload add-ons (pick up a new install)
 GET  /bb/rig_layout?armature=NAME           -> rig the armature wants Roblox to have
 POST /bb/rig_applied?armature=NAME          <- {"applied": [{name, blender_name, kind}]}
 GET  /bb/list_actions?armature=NAME         -> actions that animate the armature
@@ -23,6 +24,9 @@ import zlib
 import bpy
 
 from ..core.utils import get_object_by_name
+
+# When this copy of the module was imported (tells reloads apart in /bb/ping)
+_LOADED_AT = time.strftime("%H:%M:%S")
 
 _BONE_PATH = re.compile(r'^pose\.bones\["((?:[^"\\]|\\.)*)"\]')
 
@@ -264,7 +268,39 @@ def handle(handler, method):
                         break
             except OSError:
                 pass
-            _send(handler, 200, {"ok": True, "fork": "BBrbx", "version": version})
+            _send(handler, 200, {"ok": True, "fork": "BBrbx", "version": version, "loaded": _LOADED_AT})
+        elif method == "GET" and path == "/bb/debug_server":
+            from . import server as fresh
+
+            holder = bpy.app.driver_namespace
+            _send(handler, 200, {
+                "serving_is_fresh": handler.server is fresh.server_instance,
+                "fresh_running": fresh.get_server_status(),
+                "holder_is_fresh": holder.get("bbrbx_stop_server") is fresh.stop_server,
+                "has_holder": "bbrbx_stop_server" in holder,
+                "serving_module": type(handler.server).__module__,
+                "fresh_module_id": id(fresh),
+            })
+        elif method == "POST" and path == "/bb/reload_addon":
+            # Dev helper: pick up a freshly installed build without restarting
+            # Blender. Runs after the reply, from a timer on the main thread.
+            # Disable + enable only this add-on (Reload Scripts refuses while
+            # other add-ons run modal operators). The package drops its cached
+            # submodules on import, so the new build is loaded.
+            package = __name__.rsplit(".server", 1)[0]
+
+            def _reload():
+                import addon_utils
+
+                try:
+                    addon_utils.disable(package, default_set=False)
+                    addon_utils.enable(package, default_set=False, persistent=True)
+                except Exception:
+                    traceback.print_exc()
+                return None
+
+            bpy.app.timers.register(_reload, first_interval=0.5)
+            _send(handler, 200, {"ok": True, "reloading": True})
         elif method == "GET" and path == "/bb/rig_layout":
             from ..rig import rest_contract
 

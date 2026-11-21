@@ -174,14 +174,6 @@ function BulkActions.refreshAll(services: any)
 	end)
 end
 
-local StudioService = game:GetService("StudioService")
-
-local function classIcon(className: string): any
-	local ok, data = pcall(function()
-		return StudioService:GetClassIcon(className)
-	end)
-	return if ok then data else nil
-end
 
 local function tickImage(checked: boolean): string
 	local theme = if settings().Studio.Theme.Name == "Light" then "Light" else "Dark"
@@ -213,7 +205,7 @@ local function listLine(props: {
 	OnToggle: () -> (),
 })
 	local hovering = Value(false)
-	local icon = if props.Icon then classIcon(props.Icon) else nil
+	local icon = props.Icon
 	return New("TextButton")({
 		Name = "Line",
 		LayoutOrder = props.Order,
@@ -243,13 +235,21 @@ local function listLine(props: {
 			}),
 			tickBox(props.Checked, 1),
 			if icon
-				then New("ImageLabel")({
+				then New("Frame")({
+					Name = "SaveIcon",
 					LayoutOrder = 2,
 					BackgroundTransparency = 1,
-					Size = UDim2.fromOffset(16, 16),
-					Image = icon.Image,
-					ImageRectOffset = icon.ImageRectOffset,
-					ImageRectSize = icon.ImageRectSize,
+					Size = UDim2.fromOffset(14, 16),
+					[Children] = New("Frame")({
+						Name = "Diamond",
+						AnchorPoint = Vector2.new(0.5, 0.5),
+						Position = UDim2.fromScale(0.5, 0.5),
+						Size = UDim2.fromOffset(8, 8),
+						Rotation = 45,
+						BorderSizePixel = 0,
+						BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.MainText),
+						[Children] = Kit.corner(1),
+					}),
 				})
 				else nil,
 			New("TextLabel")({
@@ -302,34 +302,50 @@ local function pickList(m: any, order: number, filter: (any) -> boolean, tagsFor
 		end
 		return n
 	end)
+	local allLine = listLine({
+		Order = 0,
+		Checked = allChecked,
+		Text = "All",
+		Bold = true,
+		Visible = Computed(function()
+			return count:get() > 0
+		end),
+		OnToggle = function()
+			local target = not allChecked:get()
+			for _, r in ipairs(m.rows:get()) do
+				if filter(r) then
+					r.sel:set(target)
+				end
+			end
+		end,
+	})
 	return New("Frame")({
 		Name = "PickList",
 		LayoutOrder = order,
+		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.MainBackground),
 		[Children] = {
-			Kit.corner(6),
-			Kit.stroke(Enum.StudioStyleGuideColor.Border),
-			Kit.padding(4, 4, 4, 4),
-			Kit.vlist(1),
-			listLine({
-				Order = 0,
-				Checked = allChecked,
-				Text = "All",
-				Bold = true,
-				Visible = Computed(function()
-					return count:get() > 0
-				end),
-				OnToggle = function()
-					local target = not allChecked:get()
-					for _, r in ipairs(m.rows:get()) do
-						if filter(r) then
-							r.sel:set(target)
-						end
-					end
-				end,
+			Kit.vlist(4),
+			New("Frame")({
+				Name = "AllRow",
+				LayoutOrder = 0,
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				[Children] = { Kit.padding(0, 0, 0, 4), allLine },
 			}),
+			New("Frame")({
+				Name = "Panel",
+				LayoutOrder = 1,
+				Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.MainBackground),
+				[Children] = {
+					Kit.corner(6),
+					Kit.stroke(Enum.StudioStyleGuideColor.Border),
+					Kit.padding(4, 4, 4, 4),
+					Kit.vlist(1),
 			Kit.Hint({
 				Text = empty,
 				LayoutOrder = 1,
@@ -354,6 +370,8 @@ local function pickList(m: any, order: number, filter: (any) -> boolean, tagsFor
 					end,
 				})
 			end, Fusion.cleanup),
+				},
+			}),
 		},
 	})
 end
@@ -433,10 +451,85 @@ function BulkActions.importBody(services: any, layoutOrder: number, visible: any
 	})
 end
 
+-- "Upload to" choices: you, or a group where you hold a role above plain
+-- member (no typing group IDs).
+local function makeUploadTargets(m: any)
+	local bulk = m.bulk
+	local ME = "My account"
+	local groupIdByLabel: { [string]: number } = {}
+	local options = Value({ ME })
+	local selected = Value(ME)
+
+	local function labelForSettings(): string
+		if m.creatorType:get() ~= "Group" then
+			return ME
+		end
+		local id = tonumber(m.groupId:get())
+		for label, gid in pairs(groupIdByLabel) do
+			if gid == id then
+				return label
+			end
+		end
+		return if id then "Group " .. tostring(id) else ME
+	end
+
+	task.spawn(function()
+		local list = { ME }
+		local ok, groups = pcall(function()
+			local userId = game:GetService("StudioService"):GetUserId()
+			return game:GetService("GroupService"):GetGroupsAsync(userId)
+		end)
+		if ok and type(groups) == "table" then
+			table.sort(groups, function(x, y)
+				return tostring(x.Name):lower() < tostring(y.Name):lower()
+			end)
+			for _, g in ipairs(groups) do
+				-- Rank 1 is the plain member role, which can't upload to the group.
+				if (tonumber(g.Rank) or 0) <= 1 then
+					continue
+				end
+				local label = tostring(g.Name)
+				if groupIdByLabel[label] then
+					label ..= " (" .. tostring(g.Id) .. ")"
+				end
+				groupIdByLabel[label] = g.Id
+				table.insert(list, label)
+			end
+		end
+		-- keep a saved group that is not in the list (left, or lookup failed)
+		local current = labelForSettings()
+		if current ~= ME and groupIdByLabel[current] == nil then
+			groupIdByLabel[current] = tonumber(m.groupId:get()) :: number
+			table.insert(list, current)
+		end
+		options:set(list)
+		selected:set(current)
+	end)
+
+	return {
+		options = options,
+		selected = selected,
+		choose = function(label: string)
+			selected:set(label)
+			local gid = groupIdByLabel[label]
+			if label == ME or gid == nil then
+				m.creatorType:set("User")
+				bulk:setSetting("creatorType", "User")
+			else
+				m.creatorType:set("Group")
+				m.groupId:set(tostring(gid))
+				bulk:setSetting("creatorType", "Group")
+				bulk:setSetting("groupId", gid)
+			end
+		end,
+	}
+end
+
 -- Play/Upload tab: actions and saves -> Roblox
 function BulkActions.uploadBody(services: any, layoutOrder: number)
 	local m = getModel(services)
 	local bulk = m.bulk
+	local uploadTargets = makeUploadTargets(m)
 	return New("Frame")({
 		Name = "ActionUpload",
 		LayoutOrder = layoutOrder,
@@ -482,41 +575,16 @@ function BulkActions.uploadBody(services: any, layoutOrder: number)
 							bulk:setSetting("outputFolder", text)
 						end,
 					}),
-					Kit.FieldLabel({ Text = "Upload as", LayoutOrder = 3 }),
-					Kit.Row({
+					Kit.FieldLabel({ Text = "Upload to", LayoutOrder = 3 }),
+					Dropdown({
+						Size = UDim2.new(1, 0, 0, 24),
 						LayoutOrder = 4,
-						Height = 24,
-						[Children] = {
-							New("Frame")({
-								LayoutOrder = 1,
-								Size = UDim2.new(0, 0, 1, 0),
-								BackgroundTransparency = 1,
-								[Children] = {
-									Dropdown({
-										Options = { "User", "Group" },
-										Value = m.creatorType,
-										OnSelected = function(v: any): nil
-											m.creatorType:set(v)
-											bulk:setSetting("creatorType", v)
-											return nil
-										end,
-									}),
-								},
-							}),
-							TextInput({
-								Text = m.groupId,
-								PlaceholderText = "Group ID",
-								LayoutOrder = 2,
-								Size = UDim2.new(0, 0, 1, 0),
-								Enabled = Computed(function()
-									return m.creatorType:get() == "Group"
-								end),
-								[OnChange("Text")] = function(text: string)
-									m.groupId:set(text)
-									bulk:setSetting("groupId", tonumber(text) or 0)
-								end,
-							}),
-						},
+						Options = uploadTargets.options,
+						Value = uploadTargets.selected,
+						OnSelected = function(label: any): nil
+							uploadTargets.choose(label)
+							return nil
+						end,
 					}),
 					Checkbox({
 						Value = m.keepIds,

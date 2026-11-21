@@ -109,6 +109,9 @@ class SafeTCPServer(socketserver.TCPServer):
         super().__init__(server_address, RequestHandlerClass)
 
     def server_bind(self):
+        # SO_REUSEADDR keeps restarts quick (TIME_WAIT). On Windows it would
+        # also let a second copy bind the same port after an add-on reload;
+        # start_server stops older copies first, so that can't happen.
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         if hasattr(socket, "TCP_KEEPIDLE"):
@@ -211,12 +214,48 @@ def handle_blend_file_loaded(_dummy=None) -> None:
         ensure_server_timer_running()
 
 
+def _close_leftover_servers() -> None:
+    """Stop servers left behind by older copies of this module (reloads).
+
+    Each copy is stopped with its own stop_server, so its timer and live sync
+    handler go away too, not just the socket.
+    """
+    import gc
+
+    ours = globals()
+    for obj in gc.get_objects():
+        try:
+            if (
+                callable(obj)
+                and getattr(obj, "__name__", None) == "stop_server"
+                and getattr(obj, "__module__", "").endswith(".server.server")
+                and getattr(obj, "__globals__", ours) is not ours
+                and obj.__globals__.get("server_instance") is not None
+            ):
+                obj()
+        except Exception:
+            traceback.print_exc()
+
+
 def start_server(port: int = 31337) -> bool:
     """Start the live sync server using Blender timers instead of threads."""
     global server_instance, server_should_run, server_port, _timer_registered, websocket_server, _last_websocket_publish
 
     if server_instance is not None:
         stop_server()
+
+    # BBrbx: after an add-on reload the previous copy of this module may still
+    # run its server (port held, its own timer). Stop it with its own
+    # stop_server, then remember ours for the next reload.
+    holder = bpy.app.driver_namespace
+    previous_stop = holder.get("bbrbx_stop_server")
+    if previous_stop is not None and previous_stop is not stop_server:
+        try:
+            previous_stop()
+        except Exception:
+            traceback.print_exc()
+    holder["bbrbx_stop_server"] = stop_server
+    _close_leftover_servers()
 
     try:
         _dirty_armatures.clear()

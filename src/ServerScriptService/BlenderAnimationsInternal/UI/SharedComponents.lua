@@ -177,6 +177,11 @@ function SharedComponents.createHeaderUI(services: any?)
 
 	if services then
 		headerChildren._Playback = PlaybackControls.createHeaderPlayback(services, 3)
+		-- Play/Upload: saved animations right under the player
+		local PlayerTab = require(script.Parent.Tabs.PlayerTab)
+		headerChildren._Saved = PlayerTab.savedStrip(services, 5, Computed(function()
+			return State.activeTab:get() == "Play/Upload" and State.activeRigExists:get()
+		end))
 	end
 
 	return New("Frame")({

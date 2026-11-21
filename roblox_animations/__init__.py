@@ -5,8 +5,16 @@ Import Roblox rigs/places (.rbxm/.rbxl) and export animations back to
 Roblox Studio, with optional live sync and OAuth-based Studio auth.
 """
 
+import sys
+
 import bpy
 from bpy.types import AddonPreferences
+
+# BBrbx: when Blender re-imports this package (add-on disabled and enabled
+# again, or the /bb/reload_addon route), drop the cached submodules first so a
+# freshly installed build is picked up without restarting Blender.
+for _name in [m for m in sys.modules if m.startswith(__name__ + ".")]:
+    del sys.modules[_name]
 
 # Import modules once at module level
 from . import operators, ui, server

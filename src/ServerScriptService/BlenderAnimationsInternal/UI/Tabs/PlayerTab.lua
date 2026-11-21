@@ -55,17 +55,91 @@ local function savedRow(services: any, anim: any, order: number)
 			services.animationManager:playSavedAnimation(anim)
 		end,
 		[Children] = {
-			Kit.corner(5),
+			Kit.corner(4),
 			Kit.padding(0, 8),
+			New("Frame")({
+				Name = "Diamond",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0, 5, 0.5, 0),
+				Size = UDim2.fromOffset(8, 8),
+				Rotation = 45,
+				BorderSizePixel = 0,
+				BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.MainText),
+				[Children] = Kit.corner(1),
+			}),
 			New("TextLabel")({
 				BackgroundTransparency = 1,
-				Size = UDim2.fromScale(1, 1),
+				Position = UDim2.fromOffset(18, 0),
+				Size = UDim2.new(1, -18, 1, 0),
 				Text = anim.name,
 				Font = Enum.Font.BuilderSansMedium,
 				TextSize = Kit.TEXT,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextColor3 = Kit.color(Enum.StudioStyleGuideColor.MainText),
+			}),
+		},
+	})
+end
+
+-- Saved animations as a strip under the header player (Play/Upload tab):
+-- click one to play it. Scrolls after a handful of rows.
+function PlayerTab.savedStrip(services: any, layoutOrder: number, visible: any?)
+	local ROW, GAP, MAX_ROWS = 24, 1, 6
+	local count = Computed(function()
+		return #(State.savedAnimations:get() :: any)
+	end)
+	return New("Frame")({
+		Name = "SavedStrip",
+		LayoutOrder = layoutOrder,
+		Visible = visible,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		[Children] = {
+			Kit.vlist(4),
+			Kit.FieldLabel({
+				Text = Computed(function()
+					return "Saved animations · " .. tostring(count:get())
+				end),
+				LayoutOrder = 1,
+			}),
+			Kit.Hint({
+				Text = "Nothing saved in this rig yet. Use Save to rig below.",
+				LayoutOrder = 2,
+				Visible = Computed(function()
+					return count:get() == 0
+				end),
+			}),
+			New("ScrollingFrame")({
+				Name = "List",
+				LayoutOrder = 3,
+				Visible = Computed(function()
+					return count:get() > 0
+				end),
+				Size = Computed(function()
+					local rows = math.min(count:get(), MAX_ROWS)
+					return UDim2.new(1, 0, 0, rows * (ROW + GAP) + 8)
+				end),
+				CanvasSize = UDim2.new(0, 0, 0, 0),
+				AutomaticCanvasSize = Enum.AutomaticSize.Y,
+				ScrollBarThickness = 4,
+				ScrollingDirection = Enum.ScrollingDirection.Y,
+				BorderSizePixel = 0,
+				BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.MainBackground),
+				[Children] = {
+					Kit.corner(6),
+					Kit.stroke(Enum.StudioStyleGuideColor.Border),
+					Kit.padding(4, 6, 4, 4),
+					Kit.vlist(GAP),
+					Computed(function()
+						local rows = {}
+						for i, anim in ipairs(State.savedAnimations:get() :: any) do
+							table.insert(rows, savedRow(services, anim, i))
+						end
+						return rows
+					end, Fusion.cleanup),
+				},
 			}),
 		},
 	})
@@ -156,43 +230,10 @@ function PlayerTab.create(services: any)
 		},
 	})
 
-	local savedCard = VerticalCollapsibleSection({
-		Text = "Saved animations",
-		Subtitle = Computed(function()
-			return tostring(#State.savedAnimations:get())
-		end),
-		Collapsed = false,
-		LayoutOrder = 3,
-		[Children] = {
-			New("Frame")({
-				Name = "List",
-				LayoutOrder = 1,
-				BackgroundTransparency = 1,
-				Size = UDim2.new(1, 0, 0, 0),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				[Children] = {
-					Kit.vlist(2),
-					Computed(function()
-						local anims = State.savedAnimations:get() :: any
-						local rows = {}
-						if #anims == 0 then
-							table.insert(rows, Kit.Hint({ Text = "Nothing saved in this rig yet. Use Save to rig below.", LayoutOrder = 1 }))
-						end
-						for i, anim in ipairs(anims) do
-							table.insert(rows, savedRow(services, anim, i))
-						end
-						return rows
-					end, Fusion.cleanup),
-				},
-			}),
-		},
-	})
-
 	-- BBrbx: named cards; the main script decides which tab each one lives in.
 	return {
 		fromBlender = AnimationImportControls.createBlenderCard(services, 1),
 		save = saveCard,
-		saved = savedCard,
 		fromFile = AnimationImportControls.createLegacyCard(services, 4),
 		sendAnimation = AnimationImportControls.createSendCard(services, 5),
 	}

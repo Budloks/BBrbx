@@ -632,10 +632,10 @@ do -- Creates the plugin
 		["Play/Upload"] = place({
 			Kit.SectionHeader({ Text = "Play" }),
 			toolCards.camera or false,
-			animateCards.saved,
-			toolCards.boneToggles,
 			Kit.SectionHeader({ Text = "Save and upload", Gap = 12 }),
 			animateCards.save,
+			-- Bone toggles always go last
+			toolCards.boneToggles,
 		}),
 		Extras = place({
 			rigCards.weapon,

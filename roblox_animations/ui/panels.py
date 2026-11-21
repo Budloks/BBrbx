@@ -216,10 +216,9 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
         )
         force_deform = getattr(settings, "force_deform_bone_serialization", False) if settings else False
         if settings and (is_deform_bone_rig(arm) or force_deform or has_new_bones):
-            col = _split(layout)
-            col.prop(settings, "rbx_auto_deform_scale", text="Auto deform scale")
+            layout.prop(settings, "rbx_auto_deform_scale", text="Auto deform scale")
             if not settings.rbx_auto_deform_scale:
-                col.prop(settings, "rbx_deform_rig_scale", text="Unit scale")
+                _split(layout).prop(settings, "rbx_deform_rig_scale", text="Unit scale")
 
         # Active bone
         bone = arm.data.bones.active
@@ -375,7 +374,7 @@ class BBRBX_PT_export(_BBrbxPanel, bpy.types.Panel):
         # Bake
         layout.label(text="Bake without the Studio link")
         if settings:
-            _split(layout).prop(settings, "rbx_full_range_bake", text="Full range")
+            layout.prop(settings, "rbx_full_range_bake", text="Full range")
         row = layout.row(align=True)
         row.operator("object.rbxanims_bake", text="To clipboard", icon="COPYDOWN")
         row.operator("object.rbxanims_bake_file", text="To file", icon="FILE")
@@ -390,19 +389,6 @@ class BBRBX_PT_export(_BBrbxPanel, bpy.types.Panel):
         col = layout.column(align=True)
         col.label(text="Then in Studio: Import 3D, then")
         col.label(text="Import/Export, Bind imported mesh.")
-
-        # Action settings
-        layout.separator()
-        ad = arm.animation_data
-        action = ad.action if ad else None
-        if action is not None:
-            layout.label(text=action.name, icon="ACTION")
-            col = _split(layout)
-            col.prop(action, "rbx_bb_name", text="Roblox name")
-            col.prop(action, "rbx_bb_priority", text="Priority")
-            col.prop(action, "rbx_bb_loop", text="Loop")
-        else:
-            layout.label(text="No action on this armature.", icon="ACTION")
 
 
 # ---------------------------------------------------------------------------
