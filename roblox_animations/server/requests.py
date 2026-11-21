@@ -676,10 +676,13 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                         orig_mat = Matrix(pose_bone.bone["transform"])
                         orig_mat_tr1 = Matrix(pose_bone.bone["transform1"])
 
-                        if pose_bone.parent and "transform" in pose_bone.parent.bone:
-                            parent_orig_mat = Matrix(pose_bone.parent.bone["transform"])
+                        from ..animation.sampling import motor_parent
+
+                        rbx_parent = motor_parent(pose_bone)
+                        if rbx_parent is not None:
+                            parent_orig_mat = Matrix(rbx_parent.bone["transform"])
                             parent_orig_mat_tr1 = Matrix(
-                                pose_bone.parent.bone["transform1"]
+                                rbx_parent.bone["transform1"]
                             )
 
                             orig_base_mat = back_trans @ (orig_mat @ orig_mat_tr1)
@@ -691,11 +694,11 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                             cur_transform = orig_transform @ bone_transform
 
                             parent_extr_transform = Matrix(
-                                pose_bone.parent.bone["nicetransform"]
+                                rbx_parent.bone["nicetransform"]
                             ).inverted()
 
                             # Use the parent's current matrix from the pose, which was set in the previous iteration
-                            parent_matrix = pose_bone.parent.matrix
+                            parent_matrix = rbx_parent.matrix
                             parent_obj_transform = back_trans @ (
                                 parent_matrix @ parent_extr_transform
                             )

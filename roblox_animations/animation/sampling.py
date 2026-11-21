@@ -54,6 +54,18 @@ def _sampling_layout(ao, cache):
     return layout
 
 
+def motor_parent(pose_bone):
+    """Nearest ancestor that is a Roblox joint (stamped), skipping helpers.
+
+    A bone hung under a control/helper bone in Blender still has its Motor6D
+    under that ancestor in Roblox, so poses are relative to it.
+    """
+    parent = pose_bone.parent
+    while parent is not None and not all(key in parent.bone for key in ("transform", "transform1", "nicetransform")):
+        parent = parent.parent
+    return parent
+
+
 def serialize_animation_state(
     ao: "bpy.types.Object",
     back_trans_cached: Optional[Matrix] = None,
@@ -178,40 +190,37 @@ def serialize_animation_state(
                         bone_transform = orig_base_mat.inverted() @ cur_obj_transform
 
                 elif bone.parent:
-                    parent_has_motor6d_props = (
-                        "transform" in bone.parent.bone
-                        and "transform1" in bone.parent.bone
-                        and "nicetransform" in bone.parent.bone
-                    )
-                    if parent_has_motor6d_props:
-                        pcb = ensure_cache(bone.parent.name)
+                    # BBrbx: skip helper parents; the Roblox parent is the
+                    # nearest stamped ancestor (Handle for a bone under a control).
+                    rbx_parent = motor_parent(bone)
+                    if rbx_parent is not None:
+                        pcb = ensure_cache(rbx_parent.name)
                         parent_extr_inv = pcb.get("extr_inv")
                         parent_orig_base_mat = pcb.get("orig_base_mat")
                         if parent_extr_inv is None:
                             parent_nicetransform = get_cached_matrix(
-                                bone.parent.name,
+                                rbx_parent.name,
                                 "nicetransform",
-                                lambda: to_matrix(bone.parent.bone.get("nicetransform")),
+                                lambda: to_matrix(rbx_parent.bone.get("nicetransform")),
                             )
                             parent_extr_inv = parent_nicetransform.inverted()
                             pcb["extr_inv"] = parent_extr_inv
                         if parent_orig_base_mat is None:
-                            p_orig_mat = to_matrix(bone.parent.bone.get("transform"))
-                            p_orig_mat_tr1 = to_matrix(bone.parent.bone.get("transform1"))
+                            p_orig_mat = to_matrix(rbx_parent.bone.get("transform"))
+                            p_orig_mat_tr1 = to_matrix(rbx_parent.bone.get("transform1"))
                             parent_orig_base_mat = back_trans @ (
                                 p_orig_mat @ p_orig_mat_tr1
                             )
                             pcb["orig_base_mat"] = parent_orig_base_mat
 
                         parent_obj_transform = back_trans @ (
-                            bone.parent.matrix @ parent_extr_inv
+                            rbx_parent.matrix @ parent_extr_inv
                         )
                         orig_transform = parent_orig_base_mat.inverted() @ orig_base_mat
                         cur_transform = parent_obj_transform.inverted() @ cur_obj_transform
                         bone_transform = orig_transform.inverted() @ cur_transform
                     else:
-                        # Parent is a new bone, which is now handled by the deform serializer.
-                        # This bone is treated as a root in the context of Motor6D calculations.
+                        # No stamped ancestor: treat it as a root for Motor6D math.
                         bone_transform = orig_base_mat.inverted() @ cur_obj_transform
                 else:
                     # Imported root metadata is already in Roblox space. Unlike

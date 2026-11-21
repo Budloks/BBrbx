@@ -143,3 +143,44 @@ class TestHelperEasing(unittest.TestCase):
                 checked += 1
         self.assertGreater(total, 1e-3)
         self.assertGreater(checked, 3, "bezier segment was not sampled")
+
+
+class TestHelperParentIsRelativeToRobloxParent(TestHelperEasing):
+    """A bone under a helper is a Motor6D under the nearest stamped ancestor."""
+
+    def test_export_and_import_use_the_stamped_ancestor(self):
+        import math
+
+        from ..animation.sampling import serialize_animation_state
+        from ..core.utils import cf_to_mat, mat_to_cf
+        from ..server import requests as rq
+
+        from ..rig import rest_contract
+
+        rig = self.rig
+        # stamped from their real rests, as Synchronise leaves them
+        for name in ("Root", "Arm", "Follower", "Other"):
+            rest_contract.stamp_from_blender_rest(rig.data.bones[name], "Motor6D")
+        root = rig.pose.bones["Root"]
+        root.rotation_mode = "XYZ"
+        root.rotation_euler = (0.0, 0.0, math.radians(30))
+        bpy.context.view_layer.update()
+        state = serialize_animation_state(rig)
+        arm = cf_to_mat(state.get("Arm", mat_to_cf(Matrix.Identity(4))))
+        # Arm only follows Root: relative to Root it does not move
+        self.assertLess(max(abs(a - b) for ra, rb in zip(arm, Matrix.Identity(4)) for a, b in zip(ra, rb)), 1e-4)
+
+        # Studio -> Blender: Root turned, Arm identity -> Arm stays on Root
+        root_cf = state["Root"]
+        payload = {"name": "HelperParentRT", "t": 1 / 30,
+                   "kfs": [{"t": 0, "kf": {"Root": root_cf, "Arm": mat_to_cf(Matrix.Identity(4))}},
+                           {"t": 1 / 30, "kf": {"Root": root_cf, "Arm": mat_to_cf(Matrix.Identity(4))}}],
+                   "export_info": {"fps": 30}}
+        rq.execute_import_animation("helper-rt", payload, rig.name)
+        ok, _ = rq.pending_responses.pop("helper-rt", (True, None))
+        self.assertTrue(ok)
+        bpy.context.scene.frame_set(0)
+        bpy.context.view_layer.update()
+        back = serialize_animation_state(rig)
+        arm_back = cf_to_mat(back.get("Arm", mat_to_cf(Matrix.Identity(4))))
+        self.assertLess(max(abs(a - b) for ra, rb in zip(arm_back, Matrix.Identity(4)) for a, b in zip(ra, rb)), 1e-4)
