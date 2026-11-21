@@ -178,6 +178,35 @@ function BlenderSyncManager:updateAvailableArmatures()
 	State.serverStatus:set("Connected")
 	print("Auto-refreshed armatures:", #armatures, "found")
 	
+	-- BBrbx: a pick from another Blender file (or a renamed armature) is stale.
+	-- Swap it for the current one: same name, else the rig's own armature,
+	-- else the only one.
+	local selected = State.selectedArmature:get()
+	if selected then
+		local fresh = nil
+		for _, arm in ipairs(armatures) do
+			if arm.name == (selected :: any).name then
+				fresh = arm
+				break
+			end
+		end
+		if not fresh and State.activeRigModel then
+			local wanted = "__" .. State.activeRigModel.Name .. "_Armature"
+			for _, arm in ipairs(armatures) do
+				if arm.name == wanted then
+					fresh = arm
+					break
+				end
+			end
+		end
+		if not fresh and #armatures == 1 then
+			fresh = armatures[1]
+		end
+		if fresh ~= selected then
+			State.selectedArmature:set(fresh)
+		end
+	end
+
 	-- Auto-select if there's only one armature and none is currently selected
 	if #armatures == 1 and not State.selectedArmature:get() then
 		State.selectedArmature:set(armatures[1])

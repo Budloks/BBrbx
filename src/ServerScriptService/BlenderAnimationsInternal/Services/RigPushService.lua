@@ -86,6 +86,12 @@ function RigPushService:pushRig(): PushSummary
 	if not rigModel or not State.activeRig then
 		return summary(false, "Select a rig first")
 	end
+	-- Parts may have been added or deleted outside the plugin since the rig
+	-- was read; rebuild it so missing channels are created again.
+	self.rigManager:setRig(rigModel)
+	if not State.activeRig then
+		return summary(false, "Could not read the rig")
+	end
 	local sync = self.blenderSyncManager
 	local connection = sync.blenderConnectionService
 	local port = State.serverPort:get()

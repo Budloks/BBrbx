@@ -60,7 +60,11 @@ def bake_at_frame_rate(collected, names, sample, frame_start, frame_end, fps,
             selected = {names[index] for index in changed}
             probe = fetch(a + (b - a) * 0.999, selected)
             for index in changed:
-                tolerance = max(1e-8, min(2e-6, float(change[index]) * 1e-5))
+                # Blender matrices are float32: a held pose under a moving
+                # parent still jitters by ~1e-6. Real motion has covered ~99.9%
+                # of the change by the 0.999 probe, so 1% of the change (at
+                # least 2e-5) separates a hold followed by a step from motion.
+                tolerance = max(2e-5, float(change[index]) * 0.01)
                 held = np.max(np.abs(np.asarray(probe.get(names[index], identity_cf)) - left[index])) <= tolerance
                 styles[index] = "Constant" if held else "Linear"
         emit(a, left, styles)

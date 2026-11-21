@@ -320,14 +320,24 @@ def _roblox_parent_of(data_bone, exported: Dict[str, Any]):
         parent = parent.parent
     if parent is None:
         # A Blender root bone that is not the rig root hangs off the rig's
-        # PrimaryPart in Roblox (e.g. a weapon bone chain with no parent).
-        rig_roots = [
-            b for b in exported.values()
-            if b.parent is None and is_stamped(b) and not b.get(ADOPTED_PROP) and b.name != data_bone.name
-        ]
-        if rig_roots and not (data_bone.parent is None and is_stamped(data_bone) and not data_bone.get(ADOPTED_PROP)):
-            return rig_roots[0]
+        # PrimaryPart in Roblox (e.g. a weapon bone chain with no parent, or
+        # loose parts like TAC50's MagBetter that are stamped but parentless).
+        # The rig root is the stamped parentless bone with the biggest
+        # subtree (HumanoidRootPart); only that one stays a root.
+        main = _main_root(exported)
+        if main is not None and main.name != data_bone.name:
+            return main
     return parent
+
+
+def _main_root(exported: Dict[str, Any]):
+    roots = [
+        b for b in exported.values()
+        if b.parent is None and is_stamped(b) and not b.get(ADOPTED_PROP)
+    ]
+    if not roots:
+        return None
+    return max(roots, key=lambda b: len(b.children_recursive))
 
 
 def rig_layout(ao) -> Dict[str, Any]:
