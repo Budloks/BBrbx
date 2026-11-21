@@ -289,6 +289,70 @@ def _cyclic_curve_requires_dense(fc) -> bool:
     return False
 
 
+def helper_sources(ao: Any, bone_name: str, exported: Set[str]) -> Set[str]:
+    """Bones that move ``bone_name`` without being Roblox channels themselves.
+
+    Walks non-exported parents (control bones the bone hangs under) and every
+    same-armature constraint target (subtarget, pole, Armature targets), and
+    keeps following those helpers, so a chain like Arm <- Ctrl <- Root_Ctrl is
+    covered.
+    """
+    sources: Set[str] = set()
+    stack, seen = [bone_name], set()
+    while stack:
+        name = stack.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        pb = ao.pose.bones.get(name)
+        if pb is None:
+            continue
+        if name != bone_name:
+            sources.add(name)
+        parent = pb.parent
+        while parent is not None and parent.name not in exported:
+            stack.append(parent.name)
+            parent = parent.parent
+        for constraint in pb.constraints:
+            if getattr(constraint, "mute", False):
+                continue
+            if getattr(constraint, "target", None) == ao and getattr(constraint, "subtarget", ""):
+                stack.append(constraint.subtarget)
+            if getattr(constraint, "pole_target", None) == ao and getattr(constraint, "pole_subtarget", ""):
+                stack.append(constraint.pole_subtarget)
+            for target in getattr(constraint, "targets", ()) or ():
+                if getattr(target, "target", None) == ao and getattr(target, "subtarget", ""):
+                    stack.append(target.subtarget)
+    return sources
+
+
+def merge_source_easing(
+    source_maps: List[Dict[float, Tuple[Optional[str], Optional[str]]]],
+    frame_start: float,
+    frame_end: float,
+) -> Dict[float, Tuple[Optional[str], Optional[str]]]:
+    """One interpolation per frame for a bone moved by several helpers.
+
+    Constant only when every moving source holds; any curved source wins over
+    linear (its motion is sampled densely anyway); otherwise linear.
+    """
+    frames = sorted({f for m in source_maps for f in m if frame_start - 1 <= f <= frame_end + 1})
+    merged: Dict[float, Tuple[Optional[str], Optional[str]]] = {}
+    for frame in frames:
+        pairs = [lookup_interp_for_frame(m, frame) for m in source_maps]
+        pairs = [p for p in pairs if p[0]]
+        if not pairs:
+            continue
+        curved = [p for p in pairs if p[0] not in {"CONSTANT", "LINEAR"}]
+        if all(p[0] == "CONSTANT" for p in pairs):
+            merged[frame] = ("CONSTANT", pairs[0][1])
+        elif curved:
+            merged[frame] = curved[0]
+        else:
+            merged[frame] = next(p for p in pairs if p[0] == "LINEAR")
+    return merged
+
+
 def build_bake_plan(
     ao: Any,
     constrained_bones: Set[str],
@@ -591,6 +655,31 @@ def build_bake_plan(
                                                     kp.interpolation,
                                                     kp.easing,
                                                 )
+
+    # BBrbx: bones without keys of their own take the interpolation of every
+    # helper that moves them (control parents, any same-armature constraint),
+    # so a Constant control stays a step and a Linear one stays linear.
+    try:
+        from ..rig import rest_contract
+
+        exported_names = {
+            b.name for b in ao.data.bones if rest_contract.is_exported_bone(ao, b)
+        }
+    except Exception:
+        exported_names = set()
+    if exported_names:
+        for bone in ao.pose.bones:
+            if bone.name not in constrained_bones or bone.name in per_bone_interpolation:
+                continue
+            maps = [
+                per_bone_interpolation[source]
+                for source in helper_sources(ao, bone.name, exported_names)
+                if per_bone_interpolation.get(source)
+            ]
+            if maps:
+                merged = merge_source_easing(maps, frame_start, frame_end)
+                if merged:
+                    constraint_target_easing[bone.name] = merged
 
     # Propagate constraint_target_easing through COPY constraints:
     # if bone A copies from bone B, and B has easing info, A should inherit it.

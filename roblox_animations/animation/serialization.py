@@ -333,6 +333,29 @@ def get_deform_descendant_bones(
     return affected_bones
 
 
+def get_helper_parented_bones(armature_obj: "bpy.types.Object", moving: Set[str]) -> Set[str]:
+    """Exported bones whose non-exported ancestors include a moving bone."""
+    from ..rig import rest_contract
+
+    result: Set[str] = set()
+    if not armature_obj or armature_obj.type != "ARMATURE":
+        return result
+    try:
+        exported = {
+            b.name for b in armature_obj.data.bones if rest_contract.is_exported_bone(armature_obj, b)
+        }
+    except Exception:
+        return result
+    for name in exported:
+        parent = armature_obj.data.bones[name].parent
+        while parent is not None and parent.name not in exported:
+            if parent.name in moving:
+                result.add(name)
+                break
+            parent = parent.parent
+    return result
+
+
 def get_all_driven_bones(armature_obj: "bpy.types.Object") -> Set[str]:
     """
     Finds all bones that are affected by animation drivers.
@@ -843,6 +866,13 @@ def _bake_hybrid(analysis: ExportAnalysis) -> Tuple[float, List[KeyframePayload]
                     constraint.target.animation_data,
                     action=target_action,
                 )
+
+    # BBrbx: an exported bone that hangs under an animated helper (control
+    # bone that is not a Roblox channel) moves without keys of its own. Bake
+    # it like a constrained bone, or it would be left out of the export.
+    constrained_bones.update(
+        get_helper_parented_bones(ao, animated_bones | constrained_bones)
+    )
 
     has_constraints_local = len(constrained_bones) > 0 or len(non_inheriting_bones) > 0
 
