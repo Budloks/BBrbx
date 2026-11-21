@@ -20,7 +20,6 @@ local BranchScaler = {}
 export type ScaleResult = {
 	parts: number,
 	animations: number,
-	maxError: number,
 }
 
 local function scalePos(cf: CFrame, k: number): CFrame
@@ -179,10 +178,61 @@ function BranchScaler.scale(rigModel: Instance, rig: any, entry: any): (boolean,
 		inBranch[p] = true
 	end
 
-	local target: { [BasePart]: CFrame } = {}
+	-- Everything is worked out from joint offsets and RELATIVE placements, never
+	-- from where parts are drawn right now: a playing preview poses the rig
+	-- (Motor6D.Transform), and Studio only re-solves part positions on the next
+	-- frame, so absolute CFrames read here can be a posed, stale picture.
+
+	-- the root's rest frame hangs off the hinge through C1 (or C0 when reversed)
+	local rootRest: CFrame
+	if rootJoint then
+		local joint = rootJoint :: JointInstance
+		rootRest = (hinge :: CFrame) * (if joint.Part1 == rootPart then joint.C1 else joint.C0):Inverse()
+	else
+		rootRest = rootPart.CFrame
+	end
+	local rootTarget = CFrame.new(pivot + (rootRest.Position - pivot) * k) * rootRest.Rotation
+
+	-- parts held only by WeldConstraints, or loose inside a branch part: keep
+	-- their offset to the part they ride on, scaled (both read in the same frame)
+	local jointed: { [BasePart]: boolean } = { [rootPart] = true }
 	for _, p in ipairs(parts) do
-		local cf = p.CFrame
-		target[p] = CFrame.new(pivot + (cf.Position - pivot) * k) * cf.Rotation
+		for _, j in ipairs(p:GetJoints()) do
+			if j:IsA("JointInstance") and (j :: JointInstance).Part1 and inBranch[(j :: JointInstance).Part1 :: BasePart] then
+				jointed[(j :: JointInstance).Part1 :: BasePart] = true
+				if (j :: JointInstance).Part0 then
+					jointed[(j :: JointInstance).Part0 :: BasePart] = true
+				end
+			end
+		end
+	end
+	local riders: { { part: BasePart, anchor: BasePart, rel: CFrame } } = {}
+	for _, p in ipairs(parts) do
+		if jointed[p] then
+			continue
+		end
+		local anchor: BasePart? = nil
+		for _, j in ipairs(p:GetJoints()) do
+			if j:IsA("WeldConstraint") then
+				local wc = j :: WeldConstraint
+				local other = if wc.Part0 == p then wc.Part1 else wc.Part0
+				if other and inBranch[other] and other ~= p then
+					anchor = other
+					break
+				end
+			end
+		end
+		if not anchor then
+			local par = p.Parent
+			if par and par:IsA("BasePart") then
+				anchor = par :: BasePart
+			elseif par then
+				anchor = par:FindFirstAncestorWhichIsA("BasePart")
+			end
+		end
+		if anchor then
+			table.insert(riders, { part = p, anchor = anchor, rel = anchor.CFrame:Inverse() * p.CFrame })
+		end
 	end
 
 	-- channels whose animation translations scale (the root's own do not)
@@ -207,9 +257,9 @@ function BranchScaler.scale(rigModel: Instance, rig: any, entry: any): (boolean,
 				local joint = j :: JointInstance
 				if joint == rootJoint then
 					if joint.Part1 == rootPart then
-						joint.C1 = target[rootPart]:Inverse() * (hinge :: CFrame)
+						joint.C1 = rootTarget:Inverse() * (hinge :: CFrame)
 					else
-						joint.C0 = target[rootPart]:Inverse() * (hinge :: CFrame)
+						joint.C0 = rootTarget:Inverse() * (hinge :: CFrame)
 					end
 				elseif joint.Part0 and joint.Part1 and inBranch[joint.Part0] and inBranch[joint.Part1] then
 					joint.C0 = scalePos(joint.C0, k)
@@ -226,21 +276,19 @@ function BranchScaler.scale(rigModel: Instance, rig: any, entry: any): (boolean,
 		p.Size *= k
 		scaleChildren(p, k, channels)
 	end
-	for _, p in ipairs(parts) do
-		p.CFrame = target[p]
+	if not rootJoint then
+		rootPart.CFrame = rootTarget
+	end
+	for _, r in ipairs(riders) do
+		r.part.CFrame = r.anchor.CFrame * scalePos(r.rel, k)
 	end
 	for _, wc in ipairs(welds) do
 		wc.Enabled = true
 	end
-
-	local maxError = 0
-	for _, p in ipairs(parts) do
-		maxError = math.max(maxError, (p.CFrame.Position - target[p].Position).Magnitude)
-	end
 	channels[entry.root] = nil
 
 	local animations = scaleAnimations(rigModel, channels, k)
-	return true, { parts = #parts, animations = animations, maxError = maxError }
+	return true, { parts = #parts, animations = animations }
 end
 
 return BranchScaler

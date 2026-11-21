@@ -128,9 +128,6 @@ function RigPushService:pushRig(): PushSummary
 						r.animations
 					)
 				)
-				if r.maxError > 1e-3 then
-					warn(string.format("[BBrbx] Scale %s: a part ended %.3f studs off", tostring(entry.root), r.maxError))
-				end
 			else
 				table.insert(result.failed, "scale " .. tostring(entry.root) .. ": " .. tostring(info))
 			end
