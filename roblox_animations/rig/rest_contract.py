@@ -109,6 +109,9 @@ def blender_rest_in_roblox(data_bone) -> Matrix:
     return get_transform_to_blender().inverted() @ data_bone.matrix_local
 
 
+REST_SCALE_PROP = "rbx_bb_rest_scale"  # 16 floats: Roblox rest = this @ Blender rest (helper scale)
+
+
 def rest_drift(data_bone) -> float:
     """How far the Blender rest moved since the bone was stamped (0 when unchanged)."""
     if not is_stamped(data_bone):
@@ -118,7 +121,14 @@ def rest_drift(data_bone) -> float:
         @ joint_frame(data_bone)
         @ to_matrix(data_bone["nicetransform"])
     )
-    diff = expected.inverted() @ data_bone.matrix_local
+    actual = data_bone.matrix_local
+    if REST_SCALE_PROP in data_bone:
+        # sized up by a helper's scale in Blender: the Roblox rest is the
+        # Blender rest moved away from that helper's head
+        m = Matrix([list(data_bone[REST_SCALE_PROP][i * 4:i * 4 + 4]) for i in range(4)])
+        actual = actual.copy()
+        actual.translation = (m @ actual.translation.to_4d()).to_3d()
+    diff = expected.inverted() @ actual
     loc = diff.to_translation().length
     angle = abs(diff.to_quaternion().angle)
     return max(loc, angle)
@@ -425,7 +435,11 @@ def rig_layout(ao) -> Dict[str, Any]:
     from .rescale import pending
 
     rescale = [
-        {"id": e.get("id"), "root": e.get("root"), "factor": e.get("factor"), "pivot": e.get("pivot")}
+        {
+            key: e.get(key)
+            for key in ("id", "kind", "root", "source", "factor", "pivot", "channels", "parts")
+            if e.get(key) is not None
+        }
         for e in pending(ao)
     ]
     return {"armature": ao.name, "channels": channels, "warnings": warnings, "rescale": rescale}

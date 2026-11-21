@@ -114,7 +114,12 @@ function RigPushService:pushRig(): PushSummary
 		-- Branches scaled in Blender ("Scale with children") first: the rests
 		-- Blender reports below already have the new size.
 		for _, entry in ipairs(layout.rescale or {}) do
-			local okScale, info = BranchScaler.scale(rigModel, State.activeRig, entry)
+			local okScale, info
+			if entry.kind == "set" then
+				okScale, info = BranchScaler.scaleSet(rigModel, entry)
+			else
+				okScale, info = BranchScaler.scale(rigModel, State.activeRig, entry)
+			end
 			if okScale then
 				local r = info :: any
 				table.insert(rescaled, entry.id)
@@ -122,7 +127,7 @@ function RigPushService:pushRig(): PushSummary
 					scaledNotes,
 					string.format(
 						"scaled %s x%s (%d parts, %d saved animations)",
-						tostring(entry.root),
+						tostring(entry.source or entry.root),
 						tostring(entry.factor),
 						r.parts,
 						r.animations

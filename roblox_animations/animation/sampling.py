@@ -66,6 +66,16 @@ def _sampling_layout(ao, cache):
     return layout
 
 
+def _unscaled(matrix: Matrix) -> Matrix:
+    """The pose without scale. Roblox joints cannot scale, and a bone that
+    inherits a helper's scale (a whip under CTRL_Whip at 5x) must still give
+    plain positions and rotations; the size lives in the Roblox rest instead."""
+    loc, rot, scale = matrix.decompose()
+    if max(abs(scale.x - 1.0), abs(scale.y - 1.0), abs(scale.z - 1.0)) < 1e-6:
+        return matrix
+    return Matrix.Translation(loc) @ rot.to_matrix().to_4x4()
+
+
 def motor_parent(pose_bone):
     """Nearest ancestor that is a Roblox joint (stamped), skipping helpers.
 
@@ -146,7 +156,7 @@ def serialize_animation_state(
                     orig_base_mat = back_trans @ (orig_mat @ orig_mat_tr1)
                     bcache["orig_base_mat"] = orig_base_mat
 
-                cur_obj_transform = back_trans @ (bone.matrix @ extr_inv)
+                cur_obj_transform = back_trans @ (_unscaled(bone.matrix) @ extr_inv)
 
                 # Check if this is a world-space bone that needs parent compensation
                 if bone.name in worldspace_bones:
@@ -181,7 +191,7 @@ def serialize_animation_state(
                                 pcb["orig_base_mat"] = parent_orig_base_mat
 
                             # Current parent world transform
-                            parent_cur_transform = back_trans @ (original_parent_bone.matrix @ parent_extr_inv)
+                            parent_cur_transform = back_trans @ (_unscaled(original_parent_bone.matrix) @ parent_extr_inv)
 
                             # The bone's world-space target (where it should stay)
                             world_target = cur_obj_transform
@@ -226,7 +236,7 @@ def serialize_animation_state(
                             pcb["orig_base_mat"] = parent_orig_base_mat
 
                         parent_obj_transform = back_trans @ (
-                            rbx_parent.matrix @ parent_extr_inv
+                            _unscaled(rbx_parent.matrix) @ parent_extr_inv
                         )
                         orig_transform = parent_orig_base_mat.inverted() @ orig_base_mat
                         cur_transform = parent_obj_transform.inverted() @ cur_obj_transform

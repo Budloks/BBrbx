@@ -163,7 +163,16 @@ class TestScaleFromAnimation(unittest.TestCase):
             {k: round(v, 4) for k, v in rescale.scale_from_poses(self.rig).items()},
             {"GunA": 1.2, "GunB": 2.0},
         )
+        # the animation as made, without the scale (Roblox cannot show scale)
+        pb = self.rig.pose.bones
+        scale_curves = [c for c in rescale._all_fcurves(self.rig.animation_data.action) if c.data_path.endswith(".scale")]
+        for c in scale_curves:
+            c.mute = True
+        pb["GunA"].scale = pb["GunB"].scale = (1.0, 1.0, 1.0)
         before = self.slide()
+        for c in scale_curves:
+            c.mute = False
+        pb["GunB"].scale = (2.0, 2.0, 2.0)
         done = rescale.apply_pose_scale(self.rig)
         self.assertEqual({d["bone"]: d["factor"] for d in done}, {"GunA": 1.2, "GunB": 2.0})
         after = self.slide()
@@ -189,3 +198,99 @@ class TestScaleFromAnimation(unittest.TestCase):
             pb.scale = (s, s, s)
             pb.keyframe_insert("scale", frame=frame)
         self.assertNotIn("GunB", rescale.scale_from_poses(self.rig))
+
+
+class TestHelperScale(unittest.TestCase):
+    """A helper sizes up a skinned chain (a whip under CTRL_Whip at 3x)."""
+
+    def setUp(self):
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="SELECT")
+        bpy.ops.object.delete(use_global=False)
+        for action in list(bpy.data.actions):
+            bpy.data.actions.remove(action)
+        bpy.ops.object.armature_add(enter_editmode=True)
+        rig = bpy.context.object
+        rig.name = "WhipRig"
+        eb = rig.data.edit_bones
+        eb[0].name = "Root"
+
+        def bone(name, head, tail, parent, deform):
+            b = eb.new(name)
+            b.head, b.tail, b.parent, b.use_deform = head, tail, eb[parent], deform
+            return b
+
+        bone("Holder", (0, 0, 1), (0, 0.3, 1), "Root", True)
+        bone("CTRL", (0, 0.3, 1), (0, 0.5, 1), "Holder", False)
+        bone("MCH_A", (0, 0.3, 1), (0, 0.6, 1), "CTRL", False)
+        bone("MCH_B", (0, 0.6, 1), (0, 0.9, 1), "MCH_A", False)
+        bone("Seg1", (0, 0.3, 1), (0, 0.6, 1), "Holder", True)
+        bone("Seg2", (0, 0.6, 1), (0, 0.9, 1), "Seg1", True)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        for name in ("Root", "Holder"):
+            rest_contract.stamp_from_blender_rest(rig.data.bones[name], "Motor6D")
+        for name in ("Seg1", "Seg2"):
+            rest_contract.stamp_from_blender_rest(rig.data.bones[name], "Bone")
+        pb = rig.pose.bones
+        for seg, mch in (("Seg1", "MCH_A"), ("Seg2", "MCH_B")):
+            con = pb[seg].constraints.new("COPY_TRANSFORMS")
+            con.target, con.subtarget = rig, mch
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=0.6, location=(0, 0.6, 1), rotation=(1.5708, 0, 0))
+        mesh = bpy.context.object
+        mesh.name = "Whip chain"
+        for seg in ("Seg1", "Seg2"):
+            mesh.vertex_groups.new(name=seg).add(list(range(len(mesh.data.vertices))), 0.5, "REPLACE")
+        mesh.modifiers.new("Armature", "ARMATURE").object = rig
+        bpy.context.view_layer.objects.active = rig
+        scene = bpy.context.scene
+        scene.frame_start, scene.frame_end = 0, 10
+        pb["CTRL"].rotation_mode = "XYZ"
+        for frame, a in ((0, 0.0), (10, 0.6)):
+            pb["CTRL"].rotation_euler = (a, 0.0, 0.0)
+            pb["CTRL"].keyframe_insert("rotation_euler", frame=frame)
+        self.rig = rig
+
+    def test_helper_scale_reaches_studio_and_blender_stays(self):
+        rig = self.rig
+        rig.pose.bones["CTRL"].scale = (3.0, 3.0, 3.0)
+        bpy.context.scene.frame_set(5)
+        heads = {b.name: b.head.copy() for b in rig.pose.bones}
+        self.assertEqual({n: round(v, 3) for n, v in rescale.scale_from_poses(rig).items()}, {"CTRL": 3.0})
+        done = rescale.apply_pose_scale(rig)
+        self.assertEqual(done[0]["bone"], "CTRL")
+        bpy.context.scene.frame_set(5)
+        for b in rig.pose.bones:
+            self.assertLess((b.head - heads[b.name]).length, 1e-5, b.name)  # Blender untouched
+        self.assertEqual(tuple(round(s, 3) for s in rig.pose.bones["CTRL"].scale), (3.0, 3.0, 3.0))
+        entry = rescale.pending(rig)[-1]
+        self.assertEqual(entry["kind"], "set")
+        self.assertEqual(sorted(entry["channels"]), ["Seg1", "Seg2"])
+        self.assertEqual(entry["parts"], ["Whip chain"])
+        self.assertAlmostEqual(entry["factor"], 3.0, places=5)
+        for b in rig.data.bones:
+            self.assertLess(rest_contract.rest_drift(b), 1e-4, b.name)
+        # Roblox rest of Seg2 is 3x as far from the CTRL head as in Blender
+        pivot = rig.data.bones["CTRL"].head_local
+        from ..core.constants import get_transform_to_blender
+        seg2 = (get_transform_to_blender() @ rest_contract.joint_frame(rig.data.bones["Seg2"])).translation
+        self.assertLess((seg2 - (pivot + (rig.data.bones["Seg2"].head_local - pivot) * 3.0)).length, 1e-4)
+        # sent once: the next Synchronise finds nothing new
+        self.assertEqual(rescale.apply_pose_scale(rig), [])
+        # exported poses carry no scale
+        for row in serialize(rig)["kfs"]:
+            for name in ("Seg1", "Seg2"):
+                if name in row["kf"]:
+                    c = row["kf"][name][0]
+                    for axis in range(3):
+                        n = math.sqrt(sum(c[3 + axis + 3 * r] ** 2 for r in range(3)))
+                        self.assertAlmostEqual(n, 1.0, places=3)
+
+    def test_changing_the_scale_again_sends_only_the_difference(self):
+        rig = self.rig
+        rig.pose.bones["CTRL"].scale = (3.0, 3.0, 3.0)
+        rescale.apply_pose_scale(rig)
+        rig.pose.bones["CTRL"].scale = (1.5, 1.5, 1.5)
+        done = rescale.apply_pose_scale(rig)
+        self.assertEqual(len(done), 1)
+        self.assertAlmostEqual(rescale.pending(rig)[-1]["factor"], 0.5, places=5)

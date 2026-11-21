@@ -26,6 +26,7 @@ from ..core.constants import get_transform_to_blender
 from ..core.utils import to_matrix
 from . import rest_contract
 
+APPLIED_PROP = "rbx_bb_applied_scale"  # bone: helper scale already sent to Studio
 PENDING_PROP = "rbx_bb_rescale"  # armature: JSON list of changes Studio has not applied yet
 BONE_PENDING_PROP = "rbx_bb_rescale_pending"  # bone: keep these stamps until Synchronise
 
@@ -377,18 +378,23 @@ def scale_from_poses(ao) -> Optional[Dict[str, float]]:
     """
     actions = rig_actions(ao)
     out: Dict[str, float] = {}
+    exported = rest_contract.exported_bone_names(ao)
     for pb in ao.pose.bones:
-        if not rest_contract.is_stamped(pb.bone):
-            continue
+        if pb.name not in exported and not affected_by_scale(ao, pb.name, exported)[0]:
+            continue  # a helper whose scale moves nothing in Roblox
         values = list(pb.scale)
         for action in actions:
             for _bag, curve in _scale_curves(action, pb.name):
                 values.extend(kp.co.y for kp in curve.keyframe_points)
         hi, lo = max(values), min(values)
+        total = 1.0
         if hi > 1 + _SCALE_EPS:
-            out[pb.name] = hi
+            total = hi
         elif lo < 1 - _SCALE_EPS and lo > 0.01:
-            out[pb.name] = lo
+            total = lo
+        applied = float(pb.bone.get(APPLIED_PROP, 1.0))
+        if abs(total / applied - 1.0) > _SCALE_EPS:
+            out[pb.name] = total
     return out
 
 
@@ -406,10 +412,153 @@ def apply_pose_scale(ao) -> List[Dict[str, Any]]:
     done = []
     for name in order:
         factor = wanted[name]
-        for action in rig_actions(ao):
-            for container, curve in _scale_curves(action, name):
-                container.fcurves.remove(curve)
-        ao.pose.bones[name].scale = (1.0, 1.0, 1.0)
-        result = scale_branch(ao, name, factor)
+        bone = ao.data.bones[name]
+        if rest_contract.is_stamped(bone) and bone.get("rbx_joint_type", "Motor6D") != "Bone":
+            # a Roblox part (Handle, gun model): the joint is the hinge; the
+            # size moves into the rig and the scale keys go away
+            for action in rig_actions(ao):
+                for container, curve in _scale_curves(action, name):
+                    container.fcurves.remove(curve)
+            ao.pose.bones[name].scale = (1.0, 1.0, 1.0)
+            result = scale_branch(ao, name, factor)
+        else:
+            # a helper (CTRL_Whip) or a Roblox Bone: its scale stays in
+            # Blender (IK and constraints behave exactly as animated); only
+            # the Roblox rest of what it sizes up changes
+            result = bake_bone_scale(ao, name, factor)
         done.append({"bone": name, "factor": round(factor, 6), **{k: result[k] for k in ("bones", "meshes", "keys")}})
     return done
+
+
+# Constraints that carry a target's position and scale onto their owner
+_FOLLOW_CONSTRAINTS = {"COPY_TRANSFORMS", "CHILD_OF", "COPY_LOCATION", "COPY_SCALE", "TRANSFORM", "ARMATURE"}
+
+
+def affected_by_scale(ao, source: str, exported: Optional[Set[str]] = None):
+    """(Roblox bones, helper bones) that inherit ``source``'s scale.
+
+    Children inherit it, and so does any bone that follows one of them through
+    a constraint (Copy Transforms / Child Of ...), plus that bone's children:
+    CTRL_Whip -> MCH chain -> SpineBones (Copy Transforms) -> their children.
+    """
+    if exported is None:
+        exported = rest_contract.exported_bone_names(ao)
+    bones = ao.data.bones
+    ancestors = {b.name for b in bones[source].parent_recursive}
+    followers: Dict[str, Set[str]] = {}
+    for pb in ao.pose.bones:
+        for con in pb.constraints:
+            if (
+                con.type in _FOLLOW_CONSTRAINTS
+                and getattr(con, "target", None) is ao
+                and getattr(con, "subtarget", "")
+                and not getattr(con, "mute", False)
+            ):
+                followers.setdefault(con.subtarget, set()).add(pb.name)
+    seen = {source}
+    todo = [source]
+    while todo:
+        name = todo.pop()
+        nxt = {c.name for c in bones[name].children} | followers.get(name, set())
+        for n in nxt - seen:
+            if n in ancestors:
+                continue
+            seen.add(n)
+            todo.append(n)
+    seen.discard(source)
+    return sorted(n for n in seen if n in exported), sorted(n for n in seen if n not in exported)
+
+
+def _studio_part_name(obj_name: str) -> str:
+    """Studio part a Blender mesh stands for ("TAC50.model/Barrel.MeshPart" -> "Barrel")."""
+    name = obj_name.split("/")[-1]
+    for suffix in (".MeshPart", ".Part", ".UnionOperation", ".WedgePart", ".TrussPart"):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return name
+
+
+def bake_bone_scale(ao, source: str, total: float) -> Dict[str, Any]:
+    """Send a helper's (or Roblox Bone's) scale to Studio, keeping Blender as is.
+
+    ``source`` (CTRL_Whip at 5x) sizes up every bone that inherits its scale.
+    Blender stays untouched: the scale keeps driving IK and constraints exactly
+    as animated (baking it into rests would change how IK solves). Only the
+    Roblox rest of the Roblox bones it sizes up is moved away from the source's
+    head by the change since the last Synchronise, and the exporter drops pose
+    scale, so Roblox gets the same positions at the new size. Studio scales
+    those Bones and their MeshParts on Synchronise.
+    """
+    from ..core.utils import mat_to_cf  # noqa: F401  (keeps utils loaded)
+
+    applied = float(ao.data.bones[source].get(APPLIED_PROP, 1.0))
+    k = round(float(total) / applied, 6)
+    exported = rest_contract.exported_bone_names(ao)
+    roblox, helpers = affected_by_scale(ao, source, exported)
+    pivot = ao.data.bones[source].head_local.copy()
+    t2b = get_transform_to_blender()
+    pivot_rbx = (t2b.inverted() @ Matrix.Translation(pivot)).translation
+    step = _scaled_about(pivot, k)  # Blender armature space
+
+    # meshes the Roblox bones carry or skin: Studio scales those MeshParts, and
+    # a MeshPart that is also a joint (Whip blade on RootPart) moves with them
+    rigid, skinned = _attached_objects(ao, set(roblox))
+    parts = sorted({_studio_part_name(o.name) for o in rigid} | {_studio_part_name(o.name) for o, _g in skinned})
+    part_joints = [
+        b.name for b in ao.data.bones
+        if b.name in exported and b.name not in roblox
+        and rest_contract.is_stamped(b) and rest_contract.channel_name(b) in parts
+    ]
+
+    roblox_names = []
+    for name in roblox + part_joints:
+        b = ao.data.bones[name]
+        if not rest_contract.is_stamped(b):
+            continue
+        transform = to_matrix(b["transform"])
+        joint = rest_contract.joint_frame(b)
+        new_transform = _scale_position(transform, pivot_rbx, k)
+        new_joint = _scale_position(joint, pivot_rbx, k)
+        nice = to_matrix(b["nicetransform"]).copy()
+        nice.translation = nice.translation * k
+        b["transform"] = rest_contract._idprop(new_transform)
+        b["transform1"] = rest_contract._idprop(new_transform.inverted() @ new_joint)
+        b["nicetransform"] = rest_contract._idprop(nice)
+        prev = b.get(rest_contract.REST_SCALE_PROP)
+        prev_m = Matrix([list(prev[i * 4:i * 4 + 4]) for i in range(4)]) if prev else Matrix.Identity(4)
+        b[rest_contract.REST_SCALE_PROP] = [v for row in (step @ prev_m) for v in row]
+        b[BONE_PENDING_PROP] = True
+        if name in roblox:
+            roblox_names.append(rest_contract.channel_name(b))
+    ao.data.bones[source][APPLIED_PROP] = round(float(total), 6)
+
+    exported_bones = {b.name: b for b in ao.data.bones if b.name in exported}
+    main = rest_contract._main_root(exported_bones)
+    pivot_local = None
+    root_name = None
+    if main is not None and rest_contract.is_stamped(main):
+        pivot_local = list(to_matrix(main["transform"]).inverted() @ pivot_rbx)
+        root_name = rest_contract.channel_name(main)
+    entries = pending(ao)
+    entries.append(
+        {
+            "id": uuid.uuid4().hex[:12],
+            "kind": "set",
+            "root": root_name,
+            "source": source,
+            "factor": k,
+            "pivot": pivot_local,  # in the rig root part's frame (studs)
+            "channels": roblox_names,
+            "parts": parts,
+            "bones": roblox + part_joints,
+        }
+    )
+    ao[PENDING_PROP] = json.dumps(entries)
+    return {
+        "bones": len(roblox),
+        "meshes": len(parts),
+        "keys": 0,
+        "roblox": roblox,
+        "helpers": helpers,
+        "parts": parts,
+    }

@@ -291,4 +291,126 @@ function BranchScaler.scale(rigModel: Instance, rig: any, entry: any): (boolean,
 	return true, { parts = #parts, animations = animations }
 end
 
+-- A set of Roblox Bones and the MeshParts they skin, sized up by a helper's
+-- scale in Blender (a whip under CTRL_Whip). Everything moves away from
+-- `pivot` (in the rig root part's frame) by `factor`; the topmost Bones and
+-- parts of the set hang on parents that stay put. Worked out from joint and
+-- Bone rest offsets, so a playing preview does not leak into the rig.
+-- entry: { kind = "set", root, factor, pivot = {x,y,z}, channels = {...}, parts = {...} }
+function BranchScaler.scaleSet(rigModel: Model, entry: any): (boolean, string | ScaleResult)
+	local k = tonumber(entry.factor)
+	if not k or k <= 0 then
+		return false, "bad scale factor"
+	end
+	local primary = rigModel.PrimaryPart
+	if not primary then
+		return false, "the rig has no PrimaryPart"
+	end
+	local wantBones: { [string]: boolean } = {}
+	for _, n in ipairs(entry.channels or {}) do
+		wantBones[n] = true
+	end
+	local wantParts: { [string]: boolean } = {}
+	for _, n in ipairs(entry.parts or {}) do
+		wantParts[n] = true
+	end
+
+	local motorOf: { [BasePart]: JointInstance } = {}
+	for _, j in ipairs(rigModel:GetDescendants()) do
+		if j:IsA("Motor6D") or j:IsA("Weld") then
+			local p1 = (j :: JointInstance).Part1
+			if p1 and not motorOf[p1] then
+				motorOf[p1] = j :: JointInstance
+			end
+		end
+	end
+	local restCache: { [Instance]: CFrame } = {}
+	local function restWorld(inst: Instance): CFrame
+		local cached = restCache[inst]
+		if cached then
+			return cached
+		end
+		local cf: CFrame
+		if inst == primary then
+			cf = primary.CFrame
+		elseif inst:IsA("Bone") then
+			local parent = inst.Parent :: Instance
+			cf = restWorld(parent) * (inst :: Bone).CFrame
+		elseif inst:IsA("BasePart") then
+			local j = motorOf[inst :: BasePart]
+			if j and j.Part0 then
+				cf = restWorld(j.Part0 :: BasePart) * j.C0 * j.C1:Inverse()
+			else
+				cf = (inst :: BasePart).CFrame
+			end
+		else
+			cf = CFrame.identity
+		end
+		restCache[inst] = cf
+		return cf
+	end
+
+	local pl = entry.pivot
+	local pivot = if type(pl) == "table"
+		then restWorld(primary) * Vector3.new(pl[1] or 0, pl[2] or 0, pl[3] or 0)
+		else restWorld(primary).Position
+
+	local bones: { Bone } = {}
+	local parts: { BasePart } = {}
+	local inSet: { [Instance]: boolean } = {}
+	for _, d in ipairs(rigModel:GetDescendants()) do
+		if d:IsA("Bone") and wantBones[d.Name] then
+			table.insert(bones, d)
+			inSet[d] = true
+		elseif d:IsA("BasePart") and wantParts[d.Name] then
+			table.insert(parts, d)
+			inSet[d] = true
+		end
+	end
+	if #bones == 0 and #parts == 0 then
+		return false, "none of the bones or parts are in the rig"
+	end
+
+	-- rest frames before anything changes
+	local rest: { [Instance]: CFrame } = {}
+	for _, b in ipairs(bones) do
+		rest[b] = restWorld(b)
+	end
+	for _, p in ipairs(parts) do
+		rest[p] = restWorld(p)
+	end
+	local function about(cf: CFrame): CFrame
+		return CFrame.new(pivot + (cf.Position - pivot) * k) * cf.Rotation
+	end
+
+	local channels: { [string]: boolean } = {}
+	for _, b in ipairs(bones) do
+		local parent = b.Parent :: Instance
+		if inSet[parent] then
+			b.CFrame = scalePos(b.CFrame, k)
+			channels[b.Name] = true
+		else
+			b.CFrame = restWorld(parent):Inverse() * about(rest[b])
+		end
+	end
+	for _, p in ipairs(parts) do
+		p.Size *= k
+		scaleChildren(p, k, {})
+		local j = motorOf[p]
+		if j and j.Part0 then
+			if inSet[j.Part0 :: BasePart] then
+				j.C0 = scalePos(j.C0, k)
+				j.C1 = scalePos(j.C1, k)
+			else
+				j.C0 = restWorld(j.Part0 :: BasePart):Inverse() * about(rest[p]) * j.C1
+			end
+		else
+			p.CFrame = about(rest[p])
+		end
+	end
+
+	local animations = scaleAnimations(rigModel, channels, k)
+	return true, { parts = #parts + #bones, animations = animations }
+end
+
 return BranchScaler
