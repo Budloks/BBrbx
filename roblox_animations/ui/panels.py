@@ -187,6 +187,15 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
                 depress=shown,
             )
 
+        # A branch was scaled here and Studio has not caught up yet
+        from ..rig.rescale import pending
+
+        for entry in pending(arm):
+            box = layout.box()
+            box.alert = True
+            box.label(text=f"{entry.get('root')} scaled x{entry.get('factor'):g}", icon="FULLSCREEN_ENTER")
+            box.label(text="Synchronise in Studio to scale it there too")
+
         # Rig check: one status line, details only when something is wrong
         lines = _rig_check_lines(context)
         row = layout.row(align=True)
@@ -250,6 +259,8 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
         else:
             state = "frame from Studio"
         _value_row(box, "Status", state)
+        if bone.children:
+            box.operator("rbxbb.scale_branch", text="Scale with children", icon="FULLSCREEN_ENTER")
 
         pb = arm.pose.bones.get(bone.name)
         if pb is not None:

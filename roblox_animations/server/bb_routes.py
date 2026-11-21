@@ -320,6 +320,10 @@ def handle(handler, method):
             body = _body(handler)
             if armature.mode == "EDIT":
                 bpy.ops.object.mode_set(mode="OBJECT")
+            if body.get("rescaled"):
+                from ..rig.rescale import acknowledge
+
+                acknowledge(armature, body["rescaled"])
             stamped = rest_contract.apply_layout_result(armature, body.get("applied") or [])
             if body.get("target_bone_rest"):
                 rest_contract.adopt_from_target_rest(armature, body["target_bone_rest"], only_unstamped=True)

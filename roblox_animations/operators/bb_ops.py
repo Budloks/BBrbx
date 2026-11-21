@@ -117,4 +117,72 @@ class RBXBB_OT_toggle_bone_export(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (RBXBB_OT_export_deform, RBXBB_OT_rig_check, RBXBB_OT_toggle_bone_export)
+class RBXBB_OT_scale_branch(bpy.types.Operator):
+    bl_idname = "rbxbb.scale_branch"
+    bl_label = "Scale Bone Children"
+    bl_description = (
+        "Make everything under the active bone bigger or smaller (e.g. a weapon under its Handle) "
+        "and keep the animations: rests, meshes and location keys of the children scale, the bone "
+        "itself keeps its keys. Synchronise in Studio afterwards to scale the parts there too"
+    )
+    bl_options = {"REGISTER", "UNDO"}
+
+    factor: bpy.props.FloatProperty(name="Scale", default=1.25, min=0.01, max=100.0, soft_min=0.1, soft_max=10.0)
+    pivot: bpy.props.EnumProperty(
+        name="Around",
+        items=[
+            ("JOINT", "Joint", "Where the bone hangs on its parent (the grip stays put for a Handle at the grip)"),
+            ("CURSOR", "3D cursor", "Put the 3D cursor where the weapon should stay put, e.g. on the grip"),
+        ],
+        default="JOINT",
+    )
+    scale_actions: bpy.props.BoolProperty(name="Scale animations", default=True)
+
+    @classmethod
+    def poll(cls, context):
+        ao = _armature(context)
+        bone = ao.data.bones.active if ao is not None else None
+        return bone is not None and len(bone.children) > 0
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        ao = _armature(context)
+        bone = ao.data.bones.active
+        from ..rig.rescale import branch_bones, rig_actions
+
+        layout.label(text=f"{bone.name} and {len(branch_bones(ao, bone.name))} bones under it")
+        layout.prop(self, "factor")
+        layout.prop(self, "pivot")
+        layout.prop(self, "scale_actions", text=f"Scale {len(rig_actions(ao))} animation(s)")
+
+    def execute(self, context):
+        from ..rig.rescale import scale_branch
+
+        ao = _armature(context)
+        bone = ao.data.bones.active
+        pivot = None
+        if self.pivot == "CURSOR":
+            pivot = ao.matrix_world.inverted() @ context.scene.cursor.location
+        try:
+            result = scale_branch(ao, bone.name, self.factor, pivot, self.scale_actions)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        msg = (
+            f"Scaled {result['bones']} bones x{self.factor:g}, {result['meshes']} mesh(es), "
+            f"{result['keys']} keys in {len(result['actions'])} action(s). Synchronise in Studio next"
+        )
+        if result["mixed_vertices"]:
+            msg += f" ({result['mixed_vertices']} vertices also weighted outside were left)"
+        if result["helpers"]:
+            msg += f". Helpers scaled too: {', '.join(result['helpers'][:4])}"
+        if result["outside"]:
+            msg += f". Check these, they follow bones outside: {', '.join(result['outside'][:3])}"
+        self.report({"INFO"}, msg)
+        return {"FINISHED"}
+
+
+CLASSES = (RBXBB_OT_export_deform, RBXBB_OT_rig_check, RBXBB_OT_toggle_bone_export, RBXBB_OT_scale_branch)

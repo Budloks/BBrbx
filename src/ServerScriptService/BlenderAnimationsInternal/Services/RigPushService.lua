@@ -14,6 +14,7 @@
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
 local State = require(script.Parent.Parent.state)
+local BranchScaler = require(script.Parent.BranchScaler)
 
 local RigPushService = {}
 RigPushService.__index = RigPushService
@@ -105,9 +106,35 @@ function RigPushService:pushRig(): PushSummary
 	local result = summary(true, "")
 	local created: { [string]: Instance } = {}
 	local applied = {}
+	local rescaled: { string } = {}
+	local scaledNotes: { string } = {}
 
 	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Synchronise rig")
 	local okApply, applyErr = pcall(function()
+		-- Branches scaled in Blender ("Scale with children") first: the rests
+		-- Blender reports below already have the new size.
+		for _, entry in ipairs(layout.rescale or {}) do
+			local okScale, info = BranchScaler.scale(rigModel, State.activeRig, entry)
+			if okScale then
+				local r = info :: any
+				table.insert(rescaled, entry.id)
+				table.insert(
+					scaledNotes,
+					string.format(
+						"scaled %s x%s (%d parts, %d saved animations)",
+						tostring(entry.root),
+						tostring(entry.factor),
+						r.parts,
+						r.animations
+					)
+				)
+				if r.maxError > 1e-3 then
+					warn(string.format("[BBrbx] Scale %s: a part ended %.3f studs off", tostring(entry.root), r.maxError))
+				end
+			else
+				table.insert(result.failed, "scale " .. tostring(entry.root) .. ": " .. tostring(info))
+			end
+		end
 		for _, ch in ipairs(topoSort(layout.channels or {})) do
 			if not ch.parent then
 				continue -- root (PrimaryPart) is never touched
@@ -212,10 +239,14 @@ function RigPushService:pushRig(): PushSummary
 	local restData = sync:buildRestCalibration(State.activeRig)
 	local okStamp, _, stampErr = connection:BBRequest(port, "POST", "/bb/rig_applied", { armature = armature }, {
 		applied = applied,
+		rescaled = rescaled,
 		target_bone_rest = restData,
 	})
 
 	local parts = {}
+	for _, note in ipairs(scaledNotes) do
+		table.insert(parts, note)
+	end
 	if #result.created > 0 then
 		table.insert(parts, string.format("created %d", #result.created))
 	end

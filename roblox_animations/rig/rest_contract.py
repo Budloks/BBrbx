@@ -248,6 +248,8 @@ def adopt_from_target_rest(
             continue
         if only_unstamped and is_stamped(data_bone) and not data_bone.get(ADOPTED_PROP):
             continue
+        if data_bone.get("rbx_bb_rescale_pending"):
+            continue  # scaled in Blender, Studio catches up on Synchronise
         if channel == root_name:
             continue
         try:
@@ -399,7 +401,13 @@ def rig_layout(ao) -> Dict[str, Any]:
             }
         )
 
-    return {"armature": ao.name, "channels": channels, "warnings": warnings}
+    from .rescale import pending
+
+    rescale = [
+        {"id": e.get("id"), "root": e.get("root"), "factor": e.get("factor"), "pivot": e.get("pivot")}
+        for e in pending(ao)
+    ]
+    return {"armature": ao.name, "channels": channels, "warnings": warnings, "rescale": rescale}
 
 
 def apply_layout_result(ao, applied: Iterable[Dict[str, Any]]) -> List[str]:
