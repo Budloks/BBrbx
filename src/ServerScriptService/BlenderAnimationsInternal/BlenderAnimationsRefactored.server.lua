@@ -263,8 +263,12 @@ end
 table.insert(
 	State.observers,
 	Observer(State.activeSessionRig):onChange(function()
+		-- Switching rigs briefly sets the session to nil; react to where it ends up
+		-- (deferred), otherwise the camera detaches instead of following the new rig.
+		task.defer(function()
+			cameraManager:onActiveRigChanged(State.activeSessionRig:get())
+		end)
 		local rigModel = State.activeSessionRig:get()
-		cameraManager:onActiveRigChanged(rigModel)
 		-- BB fork: pick the Blender armature that belongs to this rig
 		-- ("__<Rig>_Armature" from the importer) so you don't have to.
 		if rigModel then

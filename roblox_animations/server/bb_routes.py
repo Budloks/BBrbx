@@ -253,9 +253,18 @@ def handle(handler, method):
     path, query = _query(handler)
     try:
         if method == "GET" and path == "/bb/ping":
-            from .. import bl_info
+            import os
 
-            _send(handler, 200, {"ok": True, "fork": "bb", "version": list(bl_info.get("version", ()))})
+            version = None
+            manifest = os.path.join(os.path.dirname(os.path.dirname(__file__)), "blender_manifest.toml")
+            try:
+                for line in open(manifest, encoding="utf-8"):
+                    if line.strip().startswith("version"):
+                        version = line.split("=", 1)[1].strip().strip('"')
+                        break
+            except OSError:
+                pass
+            _send(handler, 200, {"ok": True, "fork": "BBrbx", "version": version})
         elif method == "GET" and path == "/bb/rig_layout":
             from ..rig import rest_contract
 

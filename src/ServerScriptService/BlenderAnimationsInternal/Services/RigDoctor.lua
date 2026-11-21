@@ -86,12 +86,6 @@ function RigDoctor:scanRig(rig: Model): { Finding }
 				)
 			end
 		end
-		if d:IsA("Folder") and d.Name == "InitialPoses" and d.Parent ~= rig then
-			local folder = d
-			add(string.format("leftover importer folder '%s.InitialPoses'", d.Parent and d.Parent.Name or "?"), function()
-				folder:Destroy()
-			end)
-		end
 	end
 
 	-- Duplicate bone names (channels are keyed by name)
