@@ -1,5 +1,5 @@
 # pyright: reportAttributeAccessIssue=false
-"""BB fork operators: Export Deform FBX, Rig Check, per-bone export toggle."""
+"""BB fork operators: Export Deform FBX, Rig Check."""
 
 import bpy
 
@@ -90,31 +90,4 @@ class RBXBB_OT_rig_check(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class RBXBB_OT_toggle_bone_export(bpy.types.Operator):
-    bl_idname = "rbxbb.toggle_bone_export"
-    bl_label = "Export This Bone"
-    bl_description = (
-        "Choose whether the active bone becomes a Roblox joint. By default bones from "
-        "Roblox and bones that deform a mesh are exported; helper/IK/control bones are not"
-    )
-
-    mode: bpy.props.EnumProperty(
-        items=[("ON", "Always", ""), ("OFF", "Never", ""), ("AUTO", "Automatic", "")],
-        default="AUTO",
-    )
-
-    @classmethod
-    def poll(cls, context):
-        ao = _armature(context)
-        return ao is not None and ao.data.bones.active is not None
-
-    def execute(self, context):
-        bone = _armature(context).data.bones.active
-        if self.mode == "AUTO":
-            bone.pop(rest_contract.EXPORT_PROP, None)
-        else:
-            bone[rest_contract.EXPORT_PROP] = self.mode == "ON"
-        return {"FINISHED"}
-
-
-CLASSES = (RBXBB_OT_export_deform, RBXBB_OT_rig_check, RBXBB_OT_toggle_bone_export)
+CLASSES = (RBXBB_OT_export_deform, RBXBB_OT_rig_check)

@@ -12,7 +12,7 @@ Najważniejsze różnice względem oryginału:
 - **Blender:** View3D → Sidebar (N) → zakładka **BBrbx**. Na górze są status Studio, port i armatura. Niżej:
   - **Import**: rig .rbxm, Rig setup, animacja z .fbx, legacy .obj,
   - **Export**: bake bez Studio, Export Deform FBX,
-  - **Utility**: weld bones, Rig check, deform scale, aktywna kość,
+  - **Utility**: weld bones, Rig check, deform scale, aktywna kość (status i wartości w osiach Robloxa),
   - **Advanced**: constrainty, środek masy, face, walidacja, konto, About.
 - **Studio:** przycisk **BBrbx** na pasku pluginów. Zakładki:
   - **Import/Export** (nagłówki Import i Export),
@@ -80,7 +80,12 @@ Append deform mesh robi resztę za Ciebie:
 
 Przy eksporcie animacji takich rigów plugin pomija pozy, które Roblox i tak odtworzy. Na TAC50 z paskiem zostaje 352 pozy zamiast 3416, a animacja wygląda tak samo.
 
-**Kości pomocnicze** (IK, pole, kontrolki) domyślnie nie trafiają do Robloxa. Dla każdej kości zmienisz to w Utility → aktywna kość: **Always / Auto / Never**.
+**Do Robloxa trafiają tylko kości, które ruszają częścią.** Nic nie trzeba zaznaczać, plugin rozpoznaje to sam. Taka kość:
+- przyszła z Robloxa albo przeszła Synchronise,
+- ma wagi na meshu deform,
+- albo niesie mesh (np. przez Child Of, jak zaimportowane części).
+
+Helpery, cele IK, pole i kontrolki nie idą do Studio. Przy połączonym Studio animacja zawiera tylko kości, które istnieją w rigu w Studio. Bake do pliku bez Studio wysyła wszystkie kości, jak oryginał.
 - Kość ruszana przez helper zachowuje jego interpolację (Constant, Linear, Bezier).
 - Kość podpięta pod helper liczy ruch od najbliższego rodzica, który jest stawem w Robloxie.
 

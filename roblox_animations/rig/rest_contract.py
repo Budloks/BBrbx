@@ -292,23 +292,43 @@ def _deformed_bone_names(ao) -> set:
     return names
 
 
-def is_exported_bone(ao, data_bone, deformed: Optional[set] = None) -> bool:
-    """Whether a bone becomes a Roblox channel.
+def _attached_bone_names(ao) -> set:
+    """Bones that carry an object: a mesh parented to the bone or following it
+    through a constraint (Child Of, Copy Transforms...), like imported parts."""
+    names = set()
+    for obj in bpy.data.objects:
+        if obj.parent is ao and obj.parent_type == "BONE" and obj.parent_bone:
+            names.add(obj.parent_bone)
+        for con in getattr(obj, "constraints", []):
+            if getattr(con, "target", None) is ao and getattr(con, "subtarget", ""):
+                names.add(con.subtarget)
+    return names
 
-    Exported: bones that came from Roblox (stamped), bones that deform a skinned
-    mesh, and bones explicitly flagged ``rbx_export``. Helper/IK/control bones are
-    skipped unless flagged, so they never pollute the Roblox rig.
+
+def is_exported_bone(ao, data_bone, deformed: Optional[set] = None, attached: Optional[set] = None) -> bool:
+    """Whether a bone becomes a Roblox channel: only bones that move a part.
+
+    That is a bone that came from Roblox (stamped), one that deforms a skinned
+    mesh, or one that carries a mesh/object. Helper, IK and control bones move
+    nothing in Roblox, so they are never sent; there is nothing to toggle.
     """
     if is_face_control_bone(data_bone):
         return False
-    flag = data_bone.get(EXPORT_PROP)
-    if flag is not None:
-        return bool(flag)
     if is_stamped(data_bone) and not is_copied_duplicate(data_bone):
         return True
     if deformed is None:
         deformed = _deformed_bone_names(ao)
-    return data_bone.name in deformed
+    if data_bone.name in deformed:
+        return True
+    if attached is None:
+        attached = _attached_bone_names(ao)
+    return data_bone.name in attached
+
+
+def exported_bone_names(ao) -> set:
+    deformed = _deformed_bone_names(ao)
+    attached = _attached_bone_names(ao)
+    return {b.name for b in ao.data.bones if is_exported_bone(ao, b, deformed, attached)}
 
 
 def _roblox_parent_of(data_bone, exported: Dict[str, Any]):
@@ -349,8 +369,9 @@ def rig_layout(ao) -> Dict[str, Any]:
     exactly the value for ``Bone.CFrame`` or a Motor6D ``C0`` (with C1 = I).
     """
     deformed = _deformed_bone_names(ao)
+    attached = _attached_bone_names(ao)
     exported = {
-        b.name: b for b in ao.data.bones if is_exported_bone(ao, b, deformed)
+        b.name: b for b in ao.data.bones if is_exported_bone(ao, b, deformed, attached)
     }
 
     channels: List[Dict[str, Any]] = []

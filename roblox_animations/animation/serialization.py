@@ -1292,6 +1292,31 @@ def serialize(
         return _serialize_evaluated(ao, target_bone_rest)
 
 
+def keep_part_channels(ao, collected, target_bone_rest):
+    """With Studio connected, send only channels that move a part in Roblox.
+
+    Bones from Roblox, skinned bones and bones carrying a mesh always go; any
+    other bone only when the Studio rig has a joint or Bone of that name.
+    """
+    from ..rig import rest_contract
+
+    _root, frames = rest_contract._frames_from_payload(target_bone_rest)
+    if not frames:
+        return collected
+    allowed = set(frames)
+    deformed = rest_contract._deformed_bone_names(ao)
+    attached = rest_contract._attached_bone_names(ao)
+    for b in ao.data.bones:
+        if rest_contract.is_exported_bone(ao, b, deformed, attached):
+            allowed.add(rest_contract.channel_name(b))
+            allowed.add(b.name)
+    for key in collected:
+        for name in [n for n in key.poses if n not in allowed]:
+            del key.poses[name]
+    last = len(collected) - 1
+    return [key for i, key in enumerate(collected) if key.poses or key.face or i in (0, last)]
+
+
 def _serialize_evaluated(ao, target_bone_rest=None):
     """Main serialization entry point: analyze -> plan -> sample -> emit."""
     ctx = bpy.context
@@ -1299,6 +1324,33 @@ def _serialize_evaluated(ao, target_bone_rest=None):
     # Store the current frame to restore it later.
     original_frame = ctx.scene.frame_current
     original_subframe = ctx.scene.frame_subframe
+    from .sampling import ROBLOX_CHANNELS
+
+    channels_token = ROBLOX_CHANNELS.set(_roblox_channels(ao, target_bone_rest))
+    try:
+        return _serialize_with_channels(ao, target_bone_rest, ctx, original_frame, original_subframe)
+    finally:
+        ROBLOX_CHANNELS.reset(channels_token)
+
+
+def _roblox_channels(ao, target_bone_rest):
+    """Channels that move a part in the Studio rig, or None without Studio."""
+    from ..rig import rest_contract
+
+    _root, frames = rest_contract._frames_from_payload(target_bone_rest)
+    if not frames:
+        return None
+    present = set(frames)
+    deformed = rest_contract._deformed_bone_names(ao)
+    attached = rest_contract._attached_bone_names(ao)
+    for b in ao.data.bones:
+        if rest_contract.is_exported_bone(ao, b, deformed, attached):
+            present.add(rest_contract.channel_name(b))
+            present.add(b.name)
+    return present
+
+
+def _serialize_with_channels(ao, target_bone_rest, ctx, original_frame, original_subframe):
     analysis = _analyze_export(ao, target_bone_rest)
     visual_bones = get_all_constrained_bones(ao) | get_all_driven_bones(ao)
     visual_bones.update(b.name for b in ao.pose.bones if not b.bone.use_inherit_rotation)
@@ -1358,6 +1410,8 @@ def _serialize_evaluated(ao, target_bone_rest=None):
                     f"{visual_diagnostics['limited_segments']} segments. "
                     "Check exported playback for this rig."
                 )
+
+        collected = keep_part_channels(ao, collected, target_bone_rest)
 
         if analysis.is_skinned_rig:
             # Skinned rigs bake every bone on every frame; keep only the

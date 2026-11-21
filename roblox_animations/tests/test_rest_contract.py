@@ -118,7 +118,10 @@ class TestRestContract(unittest.TestCase):
         self.assertEqual(before, [list(r) for r in root["nicetransform"]])
 
     def test_rig_layout_reports_new_bone(self):
-        self.ao.data.bones["Limb"][rest_contract.EXPORT_PROP] = True
+        # a bone that carries a mesh moves a part, so it goes to Roblox
+        bpy.ops.mesh.primitive_cube_add(size=0.1)
+        part = bpy.context.object
+        part.parent, part.parent_type, part.parent_bone = self.ao, "BONE", "Limb"
         layout = rest_contract.rig_layout(self.ao)
         names = {c["name"]: c for c in layout["channels"]}
         self.assertIn("Limb", names)

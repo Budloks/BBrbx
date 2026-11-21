@@ -33,17 +33,29 @@ from .scale import (
 _SAMPLING_LAYOUT = object()
 
 
+from contextvars import ContextVar
+
+# Channel names the Studio rig has (set for one export when Studio sent its rest)
+ROBLOX_CHANNELS: "ContextVar[Optional[Set[str]]]" = ContextVar("bbrbx_roblox_channels", default=None)
+
+
 def _sampling_layout(ao, cache):
     layout = cache.get(_SAMPLING_LAYOUT)
     if layout is not None:
         return layout
+    # BBrbx: with Studio connected, only bones that exist in the Studio rig
+    # (or move a part: from Roblox, skinned, carrying a mesh) are sampled;
+    # helpers, IK targets and controls are not sent. Without Studio every new
+    # bone stays, as upstream: an FBX import turns every armature bone, helpers
+    # included, into a Roblox Bone.
+    present = ROBLOX_CHANNELS.get()
     motor, deform, worldspace = [], [], {}
     for bone in ao.pose.bones:
         if is_face_control_bone(bone):
             continue
         if all(key in bone.bone for key in ("transform", "transform1", "nicetransform")):
             motor.append(bone.name)
-        else:
+        elif present is None or bone.name in present or bone.bone.get("rbx_source_name") in present:
             deform.append(bone.name)
         if bone.bone.get("worldspace_bone"):
             parent = bone.bone.get("worldspace_original_parent", "")
@@ -350,12 +362,21 @@ def serialize_deform_animation_state(
         # Parent is neither deform nor motor6d, treat as root.
         return None, None
 
-    def get_parent_transforms(bone):
-        if bone.name in worldspace_bones:
-            original_parent = ao.pose.bones.get(worldspace_bones[bone.name])
-            return get_bone_space_transforms(original_parent)
+    deform_set = set(layout["deform"])
 
-        return get_bone_space_transforms(bone.parent)
+    def space_parent(bone):
+        """Nearest ancestor that exists in Roblox (sent bone or joint), skipping helpers."""
+        if bone.name in worldspace_bones:
+            return ao.pose.bones.get(worldspace_bones[bone.name])
+        parent = bone.parent
+        while parent is not None and parent.name not in deform_set and not all(
+            key in parent.bone for key in ("transform", "transform1", "nicetransform")
+        ):
+            parent = parent.parent
+        return parent
+
+    def get_parent_transforms(bone):
+        return get_bone_space_transforms(space_parent(bone))
 
     # Local output needs the selected bones and their immediate space parents,
     # not every channel in the rig. Read fresh evaluated bones on every call.
@@ -363,8 +384,7 @@ def serialize_deform_animation_state(
     if bone_names is not None:
         deform_names = set(layout["deform"])
         for bone in bones_to_process:
-            parent = (ao.pose.bones.get(worldspace_bones[bone.name])
-                      if bone.name in worldspace_bones else bone.parent)
+            parent = space_parent(bone)
             if parent and parent.name in deform_names and (not excluded_bones or parent.name not in excluded_bones):
                 space_bones[parent.name] = parent
     for bone in space_bones.values():

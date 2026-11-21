@@ -237,23 +237,10 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
         box = layout.box()
         box.label(text=f"{bone.name}  →  {rest_contract.channel_name(bone)}", icon="BONE_DATA")
 
-        if rest_contract.EXPORT_PROP in bone:
-            current = "ON" if bone[rest_contract.EXPORT_PROP] else "OFF"
-        else:
-            current = "AUTO"
-        row = box.row(align=True)
-        split = row.split(factor=0.4)
-        left = split.row()
-        left.alignment = "RIGHT"
-        left.label(text="Export")
-        buttons = split.row(align=True)
-        for mode, label in (("ON", "Always"), ("AUTO", "Auto"), ("OFF", "Never")):
-            buttons.operator("rbxbb.toggle_bone_export", text=label, depress=(mode == current)).mode = mode
-
         exported = rest_contract.is_exported_bone(arm, bone)
         stamped = rest_contract.is_stamped(bone) and not rest_contract.is_copied_duplicate(bone)
         if not exported:
-            state = "helper, not sent"
+            state = "helper, not sent (moves no part)"
         elif stamped:
             state = "exact Roblox frame"
         else:
