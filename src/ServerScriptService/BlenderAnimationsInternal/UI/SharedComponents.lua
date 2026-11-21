@@ -20,6 +20,7 @@ local Checkbox = require(StudioComponents.Checkbox)
 local StudioComponentsUtil = StudioComponents:FindFirstChild("Util")
 local themeProvider = require(StudioComponentsUtil.themeProvider)
 local PlaybackControls = require(script.Parent.Components.PlaybackControls)
+local Logo = require(script.Parent.Components.Logo)
 
 local SharedComponents = {}
 
@@ -79,6 +80,7 @@ function SharedComponents.createHeaderUI(services: any?)
 			PaddingTop = UDim.new(0, 8),
 			PaddingBottom = UDim.new(0, 8),
 		}),
+		_Logo = Logo({ LayoutOrder = 0 }),
 		_RigName = Label({
 			LayoutOrder = 1,
 			Text = "Select a rig (model with a Humanoid or AnimationController) in the Explorer.",

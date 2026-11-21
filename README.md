@@ -1,4 +1,9 @@
-# BBrbx
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/bbrbx-logo-white.png">
+    <img src="assets/bbrbx-logo-dark.png" alt="BBrbx" width="360">
+  </picture>
+</p>
 
 **Blender ⇄ Roblox Studio for rigs and animations.** Edit a weapon or viewmodel rig freely in Blender and push it to Studio in one click. Import every action at once, upload a batch to your group, and let Studio tell you when it plays something differently from Blender.
 
