@@ -821,10 +821,10 @@ do -- Creates the plugin
 						BackgroundTransparency = 1,
 						AutomaticCanvasSize = Enum.AutomaticSize.Y,
 						[Children] = {
-							_PlayerTab = tabFrames._PlayerTab,
-							_RiggingTab = tabFrames._RiggingTab,
+							_AnimateTab = tabFrames._AnimateTab,
+							_RigTab = tabFrames._RigTab,
 							_ToolsTab = tabFrames._ToolsTab,
-							_MoreTab = tabFrames._MoreTab,
+							_SettingsTab = tabFrames._SettingsTab,
 						},
 					}),
 					Loading({
