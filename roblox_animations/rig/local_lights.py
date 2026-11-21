@@ -2,7 +2,7 @@
 
 The signed, coincident lamps cancel EEVEE's inverse-square term. They must
 share position, color, cone and shadow settings; they are one imported source.
-No material or compositor rewrites are involved. See tools/light_parity/README.md.
+No material or compositor rewrites are involved.
 """
 import math
 import bpy

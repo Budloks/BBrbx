@@ -1,7 +1,7 @@
 """Regression cases from actual Studio 0.746 native RBXM exports.
 
 The fixtures use diagnostic textures uploaded to test creator 7255061823.
-Images are mocked here; visual tests live in tools/material_parity.
+Images are mocked here.
 """
 from pathlib import Path
 import struct, unittest
