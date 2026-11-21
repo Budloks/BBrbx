@@ -108,10 +108,10 @@ return function(props: BaseButtonProperties): TextButton
 							return 1
 						end
 						if unwrap(isPressed) then
-							return 0.97
+							return 0.98
 						end
 						if unwrap(isHovering) then
-							return 1.02
+							return 1
 						end
 						return 1
 					end), 25, 0.9),

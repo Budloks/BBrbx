@@ -20,6 +20,7 @@ local Dropdown = require(StudioComponents.Dropdown)
 local Label = require(StudioComponents.Label)
 local TextInput = require(StudioComponents.TextInput)
 local VerticalCollapsibleSection = require(StudioComponents.VerticalCollapsibleSection)
+local Kit = require(script.Parent.Parent.Kit)
 local themeProvider = require(StudioComponents.Util.themeProvider)
 
 local PRIORITIES = { "Core", "Idle", "Movement", "Action", "Action2", "Action3", "Action4" }
@@ -34,7 +35,7 @@ local function row(children: { any }, order: number, height: number?)
 		[Children] = {
 			New("UIListLayout")({
 				FillDirection = Enum.FillDirection.Horizontal,
-				Padding = UDim.new(0, 4),
+				Padding = UDim.new(0, 8),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 			}),
 			children,
@@ -42,10 +43,10 @@ local function row(children: { any }, order: number, height: number?)
 	})
 end
 
-function BulkActions.create(services: any, layoutOrder: number)
+function BulkActions.createBody(services: any, layoutOrder: number, visible: any?)
 	local bulk = services.bulkService
 	local rows = Value({} :: { any })
-	local status = Value("Refresh to list the Blender actions of the active rig.")
+	local status = Value("Connect to Blender to list the actions of this rig.")
 	local busy = Value(false)
 
 	local priority = Value(bulk:getSetting("priority"))
@@ -128,64 +129,88 @@ function BulkActions.create(services: any, layoutOrder: number)
 		end
 	end
 
+	-- BBrbx: keep the list current without pressing Refresh.
+	local function autoRefresh()
+		if State.isServerConnected:get() and State.activeRigExists:get() and not busy:get() then
+			task.spawn(refresh)
+		end
+	end
+	Fusion.Observer(State.isServerConnected):onChange(autoRefresh)
+	Fusion.Observer(State.activeSessionRig):onChange(autoRefresh)
+	Fusion.Observer(State.selectedArmature):onChange(autoRefresh)
+	task.defer(autoRefresh)
+
 	local enabledIdle = Computed(function()
 		return State.activeRigExists:get() and not busy:get()
 	end)
 
-	return VerticalCollapsibleSection({
-		Text = "📦 Bulk Actions",
-		Collapsed = true,
+	local function blenderRows()
+		local list = {}
+		for _, r in ipairs(selectedRows()) do
+			if r.blender then
+				table.insert(list, r)
+			end
+		end
+		return list
+	end
+
+	local function quick(text: string, order: number, fn: () -> ())
+		return Kit.Button({
+			Text = text,
+			LayoutOrder = order,
+			Size = UDim2.new(0, 0, 1, 0),
+			Activated = fn,
+		})
+	end
+
+	return New("Frame")({
+		Name = "BulkBody",
 		LayoutOrder = layoutOrder,
+		Visible = visible,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		[Children] = {
-			row({
-				Button({
-					Text = "Refresh",
-					Size = UDim2.new(0.25, -3, 1, 0),
-					Enabled = enabledIdle,
-					Activated = function(): nil
-						task.spawn(refresh)
-						return nil
-					end,
-				}),
-				Button({
-					Text = "All",
-					Size = UDim2.new(0.25, -3, 1, 0),
-					Activated = function(): nil
+			Kit.vlist(8),
+			Kit.FieldLabel({ Text = "Actions", LayoutOrder = 0 }),
+			Kit.Row({
+				LayoutOrder = 1,
+				Gap = 4,
+				[Children] = {
+					Kit.Button({
+						Text = "Refresh",
+						LayoutOrder = 1,
+						Size = UDim2.new(0, 0, 1, 0),
+						Enabled = enabledIdle,
+						Activated = function()
+							task.spawn(refresh)
+						end,
+					}),
+					quick("All", 2, function()
 						setAll(function()
 							return true
 						end)
-						return nil
-					end,
-				}),
-				Button({
-					Text = "None",
-					Size = UDim2.new(0.25, -3, 1, 0),
-					Activated = function(): nil
+					end),
+					quick("None", 3, function()
 						setAll(function()
 							return false
 						end)
-						return nil
-					end,
-				}),
-				Button({
-					Text = "Changed",
-					Size = UDim2.new(0.25, -3, 1, 0),
-					Activated = function(): nil
+					end),
+					quick("Changed", 4, function()
 						-- not uploaded yet, or changed in Blender since the last upload
 						setAll(function(r)
 							return r.blender and (not r.uploaded or r.changed)
 						end)
-						return nil
-					end,
-				}),
-			}, 1),
+					end),
+				},
+			}),
 			New("Frame")({
 				BackgroundTransparency = 1,
 				Size = UDim2.new(1, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
 				LayoutOrder = 2,
 				[Children] = {
-					New("UIListLayout")({ SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2) }),
+					Kit.vlist(4),
 					ForValues(rows, function(r: any)
 						local tags = {}
 						if r.blender then
@@ -212,13 +237,53 @@ function BulkActions.create(services: any, layoutOrder: number)
 					end, Fusion.cleanup),
 				},
 			}),
-			Label({ Text = "Default priority (actions can override in Blender)", LayoutOrder = 3 }),
-			New("Frame")({
-				Size = UDim2.new(1, 0, 0, 25),
-				BackgroundTransparency = 1,
+			Kit.PrimaryButton({
+				Text = "Import selected actions",
+				LayoutOrder = 3,
+				Enabled = enabledIdle,
+				Activated = function()
+					run("Importing", function(progress)
+						return bulk:importActions(blenderRows(), false, progress)
+					end)
+				end,
+			}),
+			Kit.Row({
 				LayoutOrder = 4,
 				[Children] = {
+					Kit.Button({
+						Text = "Import + upload",
+						LayoutOrder = 1,
+						Size = UDim2.new(0, 0, 1, 0),
+						Enabled = enabledIdle,
+						Activated = function()
+							run("Importing and uploading", function(progress)
+								return bulk:importActions(blenderRows(), true, progress)
+							end)
+						end,
+					}),
+					Kit.Button({
+						Text = "Upload saves",
+						LayoutOrder = 2,
+						Size = UDim2.new(0, 0, 1, 0),
+						Enabled = enabledIdle,
+						Activated = function()
+							run("Uploading", function(progress)
+								return bulk:uploadSaved(selectedRows(), progress)
+							end)
+						end,
+					}),
+				},
+			}),
+			Kit.Hint({ Text = status, LayoutOrder = 5 }),
+			VerticalCollapsibleSection({
+				Text = "Options",
+				Collapsed = true,
+				LayoutOrder = 6,
+				[Children] = {
+					Kit.FieldLabel({ Text = "Default priority (an action can override it in Blender)", LayoutOrder = 1 }),
 					Dropdown({
+						Size = UDim2.new(1, 0, 0, 24),
+						LayoutOrder = 2,
 						Options = PRIORITIES,
 						Value = priority,
 						OnSelected = function(v: any): nil
@@ -227,142 +292,98 @@ function BulkActions.create(services: any, layoutOrder: number)
 							return nil
 						end,
 					}),
-				},
-			}),
-			Checkbox({
-				Value = loop,
-				Text = "Loop by default",
-				LayoutOrder = 5,
-				OnChange = function(v: boolean): nil
-					loop:set(v)
-					bulk:setSetting("loop", v)
-					return nil
-				end,
-			}),
-			Checkbox({
-				Value = overwrite,
-				Text = "Replace saves with the same name (old one is backed up)",
-				LayoutOrder = 6,
-				OnChange = function(v: boolean): nil
-					overwrite:set(v)
-					bulk:setSetting("overwrite", v)
-					return nil
-				end,
-			}),
-			Label({ Text = "Upload: Animation objects + AnimationIds module go to", LayoutOrder = 7 }),
-			TextInput({
-				Text = outputFolder,
-				PlaceholderText = "ReplicatedStorage/Animations",
-				LayoutOrder = 8,
-				[OnChange("Text")] = function(text: string)
-					outputFolder:set(text)
-					bulk:setSetting("outputFolder", text)
-				end,
-			}),
-			row({
-				New("Frame")({
-					Size = UDim2.new(0.5, -2, 1, 0),
-					BackgroundTransparency = 1,
-					[Children] = {
-						Dropdown({
-							Options = { "User", "Group" },
-							Value = creatorType,
-							OnSelected = function(v: any): nil
-								creatorType:set(v)
-								bulk:setSetting("creatorType", v)
-								return nil
+					Checkbox({
+						Value = loop,
+						Text = "Loop by default",
+						LayoutOrder = 3,
+						OnChange = function(v: boolean): nil
+							loop:set(v)
+							bulk:setSetting("loop", v)
+							return nil
+						end,
+					}),
+					Checkbox({
+						Value = overwrite,
+						Text = "Replace saves with the same name (backed up)",
+						LayoutOrder = 4,
+						OnChange = function(v: boolean): nil
+							overwrite:set(v)
+							bulk:setSetting("overwrite", v)
+							return nil
+						end,
+					}),
+					Kit.FieldLabel({ Text = "Upload folder (Animation objects + AnimationIds)", LayoutOrder = 5 }),
+					TextInput({
+						Text = outputFolder,
+						PlaceholderText = "ReplicatedStorage/Animations",
+						LayoutOrder = 6,
+						[OnChange("Text")] = function(text: string)
+							outputFolder:set(text)
+							bulk:setSetting("outputFolder", text)
+						end,
+					}),
+					Kit.FieldLabel({ Text = "Upload as", LayoutOrder = 7 }),
+					row({
+						New("Frame")({
+							Size = UDim2.new(0.5, -4, 1, 0),
+							BackgroundTransparency = 1,
+							[Children] = {
+								Dropdown({
+									Options = { "User", "Group" },
+									Value = creatorType,
+									OnSelected = function(v: any): nil
+										creatorType:set(v)
+										bulk:setSetting("creatorType", v)
+										return nil
+									end,
+								}),
+							},
+						}),
+						TextInput({
+							Text = groupId,
+							PlaceholderText = "Group ID",
+							Size = UDim2.new(0.5, -4, 1, 0),
+							Enabled = Computed(function()
+								return creatorType:get() == "Group"
+							end),
+							[OnChange("Text")] = function(text: string)
+								groupId:set(text)
+								bulk:setSetting("groupId", tonumber(text) or 0)
 							end,
 						}),
-					},
-				}),
-				TextInput({
-					Text = groupId,
-					PlaceholderText = "Group ID",
-					Size = UDim2.new(0.5, -2, 1, 0),
-					Enabled = Computed(function()
-						return creatorType:get() == "Group"
-					end),
-					[OnChange("Text")] = function(text: string)
-						groupId:set(text)
-						bulk:setSetting("groupId", tonumber(text) or 0)
-					end,
-				}),
-			}, 9),
-			Checkbox({
-				Value = keepIds,
-				Text = "Keep the same asset ID when re-uploading",
-				LayoutOrder = 10,
-				OnChange = function(v: boolean): nil
-					keepIds:set(v)
-					bulk:setSetting("keepIds", v)
-					return nil
-				end,
-			}),
-			Checkbox({
-				Value = writeIdModule,
-				Text = "Write an 'AnimationIds' ModuleScript",
-				LayoutOrder = 11,
-				OnChange = function(v: boolean): nil
-					writeIdModule:set(v)
-					bulk:setSetting("writeIdModule", v)
-					return nil
-				end,
-			}),
-			Button({
-				Text = "Import Selected",
-				Size = UDim2.new(1, 0, 0, 28),
-				LayoutOrder = 12,
-				Enabled = enabledIdle,
-				Activated = function(): nil
-					run("Importing", function(progress)
-						local list = {}
-						for _, r in ipairs(selectedRows()) do
-							if r.blender then
-								table.insert(list, r)
-							end
-						end
-						return bulk:importActions(list, false, progress)
-					end)
-					return nil
-				end,
-			}),
-			Button({
-				Text = "Import + Upload",
-				Size = UDim2.new(1, 0, 0, 28),
-				LayoutOrder = 13,
-				Enabled = enabledIdle,
-				Activated = function(): nil
-					run("Importing and uploading", function(progress)
-						local list = {}
-						for _, r in ipairs(selectedRows()) do
-							if r.blender then
-								table.insert(list, r)
-							end
-						end
-						return bulk:importActions(list, true, progress)
-					end)
-					return nil
-				end,
-			}),
-			Button({
-				Text = "Upload Selected Saves",
-				Size = UDim2.new(1, 0, 0, 28),
-				LayoutOrder = 14,
-				Enabled = enabledIdle,
-				Activated = function(): nil
-					run("Uploading", function(progress)
-						return bulk:uploadSaved(selectedRows(), progress)
-					end)
-					return nil
-				end,
-			}),
-			Label({
-				Text = status,
-				TextWrapped = true,
-				LayoutOrder = 15,
-				TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
+					}, 8, 24),
+					Checkbox({
+						Value = keepIds,
+						Text = "Keep the same asset ID when re-uploading",
+						LayoutOrder = 9,
+						OnChange = function(v: boolean): nil
+							keepIds:set(v)
+							bulk:setSetting("keepIds", v)
+							return nil
+						end,
+					}),
+					Checkbox({
+						Value = writeIdModule,
+						Text = "Write an AnimationIds ModuleScript",
+						LayoutOrder = 10,
+						OnChange = function(v: boolean): nil
+							writeIdModule:set(v)
+							bulk:setSetting("writeIdModule", v)
+							return nil
+						end,
+					}),
+				},
 			}),
 		},
+	})
+end
+
+function BulkActions.create(services: any, layoutOrder: number)
+	return VerticalCollapsibleSection({
+		Text = "Actions from Blender",
+		Collapsed = true,
+		LayoutOrder = layoutOrder,
+		[Children] = { BulkActions.createBody(services, 1) },
 	})
 end
 

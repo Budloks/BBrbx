@@ -16,20 +16,19 @@ local Dropdown = require(StudioComponents.Dropdown)
 local Label = require(StudioComponents.Label)
 local Slider = require(StudioComponents.Slider)
 local VerticalCollapsibleSection = require(StudioComponents.VerticalCollapsibleSection)
+local Kit = require(script.Parent.Parent.Kit)
 
 
 local CameraControls = {}
 
 function CameraControls.createCameraControlsUI(services: any)
 	return VerticalCollapsibleSection({
-		Text = "🎥 Camera Controls",
+		Text = "Camera",
+		Subtitle = "view through a bone",
 		Collapsed = false,
 		LayoutOrder = 2,
 		[Children] = {
-			Label({
-				Text = "Select Part to Attach Camera",
-				LayoutOrder = 1,
-			}),
+			Kit.FieldLabel({ Text = "Attach to", LayoutOrder = 1 }),
 			New("Frame")({
 				Size = UDim2.new(1, 0, 0, 25),
 				LayoutOrder = 2,
@@ -59,7 +58,7 @@ function CameraControls.createCameraControlsUI(services: any)
 				[Children] = {
 					Button({
 						Text = Computed(function()
-							return State.isCameraAttached:get() and "🎥 Detach Camera" or "🎥 Attach Camera"
+							return State.isCameraAttached:get() and "Detach camera" or "Attach camera"
 						end),
 						Activated = function(): nil
 							if services and services.cameraManager then
@@ -78,9 +77,11 @@ function CameraControls.createCameraControlsUI(services: any)
 					}),
 				},
 			}) :: any,
-			Label({
+			Kit.FieldLabel({
 				LayoutOrder = 4,
-				Text = "Adjust Field of View",
+				Text = Computed(function()
+					return "Field of view  ·  " .. tostring(State.fovValue:get())
+				end),
 			}),
 			Slider({
 				LayoutOrder = 5,
@@ -102,12 +103,6 @@ function CameraControls.createCameraControlsUI(services: any)
 					return State.isCameraAttached:get()
 				end),
 			}) :: any,
-			Label({
-				LayoutOrder = 6,
-				Text = Computed(function()
-					return tostring(State.fovValue:get())
-				end),
-			}),
 		},
 	})
 end

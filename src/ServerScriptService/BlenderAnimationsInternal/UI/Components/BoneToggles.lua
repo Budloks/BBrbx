@@ -276,7 +276,7 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 	end
 
 	local section = VerticalCollapsibleSection({
-		Text = "🦴 Bone Toggles",
+		Text = "Bone toggles",
 		Collapsed = true,
 		LayoutOrder = layoutOrder or 2,
 		Visible = State.activeRigExists,

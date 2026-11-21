@@ -65,6 +65,8 @@ local OnChange = Fusion.OnChange
 local Observer = Fusion.Observer
 
 local GLOBAL_HEADER_HEIGHT = 108
+local TAB_BAR_HEIGHT = 32
+local Kit = require(script.Parent.UI.Kit)
 local RIG_TABS_HEIGHT = 28  -- 0 when no rigs, 28 when rigs present
 -- Measured height of the auto-sizing global header (warnings can make it grow).
 local globalHeaderHeight = Value(GLOBAL_HEADER_HEIGHT)
@@ -504,163 +506,81 @@ do -- Creates the plugin
         end)
     end
 
-	-- Create tabs UI
+	-- BBrbx: horizontal tab bar (Animate / Rig / Tools / Settings)
 	local function createTabsUI()
+		local buttons: { [any]: any } = {
+			New("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalFlex = Enum.UIFlexAlignment.Fill,
+				VerticalFlex = Enum.UIFlexAlignment.Fill,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Padding = UDim.new(0, 2),
+			}),
+			Kit.padding(0, 8, 0, 8),
+		}
+		for i, tabName in ipairs(State.tabs:get()) do
+			local hovering = Value(false)
+			local isActive = Computed(function()
+				return State.activeTab:get() == tabName
+			end)
+			table.insert(buttons, New("TextButton")({
+				Name = tabName .. "TabButton",
+				LayoutOrder = i,
+				AutoButtonColor = false,
+				BackgroundTransparency = 1,
+				Text = tabName,
+				Font = Computed(function()
+					return if isActive:get() then Enum.Font.BuilderSansBold else Enum.Font.BuilderSansMedium
+				end),
+				TextSize = 14,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				TextColor3 = Computed(function()
+					local style = if isActive:get() or hovering:get()
+						then Enum.StudioStyleGuideColor.BrightText
+						else Enum.StudioStyleGuideColor.DimmedText
+					return themeProvider:GetColor(style):get()
+				end),
+				[OnEvent("MouseEnter")] = function()
+					hovering:set(true)
+				end,
+				[OnEvent("MouseLeave")] = function()
+					hovering:set(false)
+				end,
+				[OnEvent("Activated")] = function()
+					State.activeTab:set(tabName)
+				end,
+				[Children] = New("Frame")({
+					Name = "ActiveUnderline",
+					AnchorPoint = Vector2.new(0.5, 1),
+					Position = UDim2.fromScale(0.5, 1),
+					Size = UDim2.new(1, -8, 0, 2),
+					BorderSizePixel = 0,
+					BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DialogMainButton),
+					Visible = isActive,
+				}),
+			}))
+		end
 		return New("Frame")({
-			Size = UDim2.new(0, 40, 1, 0),
-			Position = Computed(function()
-				return if State.dockSide:get() == Enum.InitialDockState.Left
-					then UDim2.fromOffset(0, 0)
-					else UDim2.new(1, -40, 0, 0)
-			end),
+			Name = "TabBar",
+			ZIndex = 2,
+			Position = UDim2.fromOffset(0, RIG_TABS_HEIGHT),
+			Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT),
 			BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.MainBackground),
+			BorderSizePixel = 0,
 			[Children] = {
-				New("ScrollingFrame")({
-					Size = UDim2.new(1, 0, 1, 0),
+				New("Frame")({
+					Name = "Buttons",
 					BackgroundTransparency = 1,
-					CanvasSize = UDim2.new(0, 0, 0, 0),
-					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					ScrollBarThickness = 4,
-					ScrollBarImageTransparency = 0.5,
-					[Children] = {
-						New("UIListLayout")({
-							FillDirection = Enum.FillDirection.Vertical,
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Padding = UDim.new(0, 4),
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						}),
-						New("UIPadding")({
-							PaddingTop = UDim.new(0, 10),
-							PaddingBottom = UDim.new(0, 5),
-						}),
-
-						[Children :: any] = Computed(function()
-							local tabButtons: {any} = {}
-
-							local function DropIndicator(index: number)
-								return New("Frame")({
-									Size = UDim2.new(1, 0, 0, 4),
-									BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.MainText),
-									BorderSizePixel = 0,
-									LayoutOrder = index - 1,
-									Visible = Computed(function()
-										return State.dropIndex:get() == index
-									end),
-								})
-							end
-
-							for i, tabName in ipairs(State.tabs:get()) do
-								table.insert(tabButtons, DropIndicator(i))
-								table.insert(
-									tabButtons,
-									New("Frame")({
-										LayoutOrder = i,
-										Size = UDim2.new(1, 0, 0, 128),
-										BackgroundTransparency = 1,
-										[Children] = {
-											Button({
-												Text = tabName,
-											Size = UDim2.new(0, 128, 0, 22),
-												Position = UDim2.fromScale(0.5, 0.5),
-												AnchorPoint = Vector2.new(0.5, 0.5),
-												Rotation = Computed(function()
-													return if State.dockSide:get() == Enum.InitialDockState.Left then 90 else -90
-												end),
-												BackgroundColorStyle = Computed(function()
-													if State.activeTab:get() == tabName then
-														return Enum.StudioStyleGuideColor.DiffFilePathBackground
-													else
-														return Enum.StudioStyleGuideColor.Button
-													end
-												end),
-												[OnEvent("InputBegan")] = function(input)
-													if input and input.UserInputType == Enum.UserInputType.MouseButton1 then
-														State.activeTab:set(tabName)
-														State.draggedTab:set(tabName)
-													end
-												end,
-												[OnEvent("InputEnded")] = function(input)
-													if input and input.UserInputType == Enum.UserInputType.MouseButton1 then
-														local dropIndexValue = State.dropIndex:get()
-														if State.draggedTab:get() and dropIndexValue then
-															local tabs = State.tabs:get()
-															local dragIndex
-															for i, t in ipairs(tabs) do
-																if t == State.draggedTab:get() then
-																	dragIndex = i
-																	break
-																end
-															end
-															if dragIndex then
-																local droppedTab = table.remove(tabs, dragIndex)
-																local dropIndex = dropIndexValue
-																if dragIndex < dropIndex then
-																	dropIndex = dropIndex - 1
-																end
-																table.insert(tabs, dropIndex, droppedTab)
-																State.tabs:set(tabs)
-																plugin:SetSetting("TabOrder", tabs)
-															end
-														end
-														State.draggedTab:set(nil)
-														State.dropIndex:set(nil)
-													end
-												end,
-											}) :: any,
-											New("Frame")({
-												Size = UDim2.fromScale(1, 1),
-												BackgroundTransparency = 1,
-												ZIndex = 2,
-												[OnEvent("MouseEnter")] = function()
-													if State.draggedTab:get() and State.draggedTab:get() ~= tabName then
-														State.dropIndex:set(i)
-													end
-												end,
-												[OnEvent("MouseLeave")] = function()
-													if State.dropIndex:get() == i then
-														State.dropIndex:set(nil)
-													end
-												end,
-											}),
-										},
-									})
-								)
-							end
-							table.insert(tabButtons, DropIndicator(#State.tabs:get() + 1))
-
-							table.insert(
-								tabButtons,
-								New("Frame")({
-									LayoutOrder = #State.tabs:get() + 2,
-									Size = UDim2.new(1, 0, 0, 40),
-									BackgroundTransparency = 1,
-									[Children] = {
-										Button({
-											Text = "⇩",
-											Size = UDim2.new(0, 40, 0, 22),
-											Position = UDim2.fromScale(0.5, 0.5),
-											AnchorPoint = Vector2.new(0.5, 0.5),
-											Rotation = Computed(function()
-												return if State.dockSide:get() == Enum.InitialDockState.Left then -90 else 90
-											end),
-											Activated = function()
-												local newSide
-												if State.dockSide:get() == Enum.InitialDockState.Left then
-													newSide = Enum.InitialDockState.Right
-												else
-													newSide = Enum.InitialDockState.Left
-												end
-												State.dockSide:set(newSide)
-												plugin:SetSetting("DockSide", newSide)
-											end,
-											BackgroundColorStyle = Enum.StudioStyleGuideColor.Button,
-										}) :: any,
-									},
-								})
-							)
-							return tabButtons
-						end, Fusion.cleanup) :: any,
-					},
+					Size = UDim2.fromScale(1, 1),
+					[Children] = buttons,
+				}),
+				New("Frame")({
+					Name = "Divider",
+					AnchorPoint = Vector2.new(0, 1),
+					Position = UDim2.fromScale(0, 1),
+					Size = UDim2.new(1, 0, 0, 1),
+					BorderSizePixel = 0,
+					BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.Border),
 				}),
 			},
 		})
@@ -684,12 +604,12 @@ do -- Creates the plugin
 		local tabChildren = {
 			_UIListLayout = New("UIListLayout")({
 				SortOrder = Enum.SortOrder.LayoutOrder,
-				Padding = UDim.new(0, 7),
+				Padding = UDim.new(0, 10),
 			}),
 			_UIPadding = New("UIPadding")({
-				PaddingLeft = UDim.new(0, 5),
+				PaddingLeft = UDim.new(0, 10),
 				PaddingRight = UDim.new(0, 14),
-				PaddingBottom = UDim.new(0, 10),
+				PaddingBottom = UDim.new(0, 16),
 				PaddingTop = UDim.new(0, 10),
 			}),
 		}
@@ -750,13 +670,9 @@ do -- Creates the plugin
 		local globalHeader = New("Frame")({
 			Name = "GlobalHeader",
 			ZIndex = 1,
-			Size = UDim2.new(1, -40, 0, 0),
+			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
-			Position = Computed(function()
-				return if State.dockSide:get() == Enum.InitialDockState.Left
-					then UDim2.fromOffset(40, rigTabsOffset)
-					else UDim2.fromOffset(0, rigTabsOffset)
-			end),
+			Position = UDim2.fromOffset(0, rigTabsOffset + TAB_BAR_HEIGHT),
 			BackgroundTransparency = 1,
 			[Children] = {
 				SharedComponents.createHeaderUI(services),
@@ -784,7 +700,7 @@ do -- Creates the plugin
 			InitialDockTo = State.dockSide:get(),
 			InitialEnabled = false,
 			ForceInitialEnabled = false,
-			FloatingSize = Vector2.new(250, 600),
+			FloatingSize = Vector2.new(300, 640),
 			MinimumSize = Vector2.new(250, 600),
 			Enabled = State.widgetsEnabled,
 			[Children] = New("Frame")({
@@ -796,27 +712,31 @@ do -- Creates the plugin
 					New("Frame")({
 						Name = "RigTabsContainer",
 						ZIndex = 2,
-						Size = UDim2.new(1, -40, 0, RIG_TABS_HEIGHT),
-						Position = Computed(function()
-							return if State.dockSide:get() == Enum.InitialDockState.Left
-								then UDim2.fromOffset(40, 0)
-								else UDim2.fromOffset(0, 0)
-						end),
+						Size = UDim2.new(1, -112, 0, RIG_TABS_HEIGHT),
+						Position = UDim2.fromOffset(0, 0),
 						BackgroundTransparency = 1,
 						[Children] = {
 							rigTabsBar,
 						},
 					}),
+					Kit.StatusPill({
+						Text = Computed(function()
+							return if State.isServerConnected:get()
+								then "Blender :" .. tostring(State.serverPort:get())
+								else "Blender offline"
+						end),
+						Ok = State.isServerConnected,
+						AnchorPoint = Vector2.new(1, 0.5),
+						Position = UDim2.new(1, -8, 0, RIG_TABS_HEIGHT / 2),
+					}),
 					globalHeader,
 					ScrollFrame({
 						ZIndex = 1,
 						Size = Computed(function()
-							return UDim2.new(1, -40, 1, -(globalHeaderHeight:get() + rigTabsOffset))
+							return UDim2.new(1, 0, 1, -(globalHeaderHeight:get() + rigTabsOffset + TAB_BAR_HEIGHT))
 						end),
 						Position = Computed(function()
-							return if State.dockSide:get() == Enum.InitialDockState.Left
-								then UDim2.fromOffset(40, globalHeaderHeight:get() + rigTabsOffset)
-								else UDim2.fromOffset(0, globalHeaderHeight:get() + rigTabsOffset)
+							return UDim2.fromOffset(0, globalHeaderHeight:get() + rigTabsOffset + TAB_BAR_HEIGHT)
 						end),
 						BackgroundTransparency = 1,
 						AutomaticCanvasSize = Enum.AutomaticSize.Y,

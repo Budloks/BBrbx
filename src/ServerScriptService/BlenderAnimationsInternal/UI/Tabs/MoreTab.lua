@@ -47,7 +47,7 @@ function MoreTab.create(services: any)
 
 	return {
 		VerticalCollapsibleSection({
-			Text = "🔄 Blender Connection",
+			Text = "Blender connection",
 			Collapsed = false,
 			LayoutOrder = 1,
 			[Children] = {
@@ -77,13 +77,13 @@ function MoreTab.create(services: any)
 			},
 		}) :: any,
 		VerticalCollapsibleSection({
-			Text = "📁 Import Sources",
+			Text = "Import sources",
 			Collapsed = false,
 			LayoutOrder = 2,
 			[Children] = {
 				Checkbox(withHint({
 					Value = State.enableFileExport,
-					Text = "Import from files",
+					Text = "Show import from files",
 					LayoutOrder = 1,
 					OnChange = function(enabled: boolean): nil
 						State.enableFileExport:set(enabled)
@@ -93,7 +93,7 @@ function MoreTab.create(services: any)
 				}, activeHint, "Shows 'Import Animation from File(s)' for animations baked to a file in Blender.")),
 				Checkbox(withHint({
 					Value = State.enableClipboardExport,
-					Text = "Import from clipboard",
+					Text = "Show import from clipboard",
 					LayoutOrder = 2,
 					OnChange = function(enabled: boolean): nil
 						State.enableClipboardExport:set(enabled)
@@ -104,7 +104,7 @@ function MoreTab.create(services: any)
 			},
 		}) :: any,
 		VerticalCollapsibleSection({
-			Text = "🎛 Interface",
+			Text = "Interface",
 			Collapsed = false,
 			LayoutOrder = 3,
 			[Children] = {
@@ -131,7 +131,7 @@ function MoreTab.create(services: any)
 			RichText = true,
 		}),
 		VerticalCollapsibleSection({
-			Text = "ℹ About BBrbx",
+			Text = "About BBrbx",
 			Collapsed = false,
 			LayoutOrder = 5,
 			[Children] = {

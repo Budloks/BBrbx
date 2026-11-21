@@ -287,22 +287,10 @@ function RigTabs.create(services: any)
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			}),
 			New("UIPadding")({
-				PaddingLeft = UDim.new(0, 4),
+				PaddingLeft = UDim.new(0, 8),
 				PaddingRight = UDim.new(0, 4),
 				PaddingTop = UDim.new(0, 4),
 				PaddingBottom = UDim.new(0, 4),
-			}),
-
-			-- Divider line at bottom
-			New("Frame")({
-				Name = "RigTabsDivider",
-				AnchorPoint = Vector2.new(0, 1),
-				Position = UDim2.new(0, 0, 1, 0),
-				Size = UDim2.new(1, 0, 0, 1),
-				BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.Border),
-				BorderSizePixel = 0,
-				ZIndex = 2,
-				LayoutOrder = 999,
 			}),
 
 			tabList,

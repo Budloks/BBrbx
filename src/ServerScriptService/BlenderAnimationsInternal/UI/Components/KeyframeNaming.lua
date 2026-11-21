@@ -53,12 +53,12 @@ end
 
 function KeyframeNaming.createKeyframeNamingUI(services: any, layoutOrder: number?)
 	return VerticalCollapsibleSection({
-		Text = "🏷 Markers & Keyframe Names",
-		Collapsed = false,
+		Text = "Markers and keyframe names",
+		Collapsed = true,
 		LayoutOrder = layoutOrder or 14,
 		[Children] = {
 			Label({
-				Text = "Insert Animation Event (marker), or Name Keyframe",
+				Text = "Add an event marker or name the current keyframe",
 				LayoutOrder = 1,
 			}),
 			Dropdown({
@@ -94,7 +94,7 @@ function KeyframeNaming.createKeyframeNamingUI(services: any, layoutOrder: numbe
 				BackgroundTransparency = 1,
 				[Children] = {
 					Button({
-						Text = "Add Marker/Event",
+						Text = "Add marker",
 						Size = UDim2.new(1, 0, 1, 0),
 						Activated = KeyframeNaming.addKeyframeName :: (() -> nil)?,
 						Enabled = Computed(function()

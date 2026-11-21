@@ -82,20 +82,22 @@ function SharedComponents.createHeaderUI(services: any?)
 	local headerChildren = {
 		_Layout = New("UIListLayout")({
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0, 1),
+			Padding = UDim.new(0, 6),
 		}),
 		_Padding = New("UIPadding")({
-			PaddingLeft = UDim.new(0, 7),
-			PaddingRight = UDim.new(0, 7),
-			PaddingTop = UDim.new(0, 6),
-			PaddingBottom = UDim.new(0, 3),
+			PaddingLeft = UDim.new(0, 10),
+			PaddingRight = UDim.new(0, 10),
+			PaddingTop = UDim.new(0, 8),
+			PaddingBottom = UDim.new(0, 8),
 		}),
 		_RigName = Label({
 			LayoutOrder = 1,
-			Text = Computed(function()
-				return "Rig: " .. State.rigModelName:get()
+			Text = "Select a rig (model with a Humanoid or AnimationController) in the Explorer.",
+			TextWrapped = true,
+			Visible = Computed(function()
+				return not State.activeRigExists:get()
 			end),
-			Font = Enum.Font.SourceSansBold,
+			TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
 			TextXAlignment = Enum.TextXAlignment.Left,
 		}),
 		_LockSelection = New("Frame")({
@@ -143,7 +145,7 @@ function SharedComponents.createHeaderUI(services: any?)
 					[OnEvent("Activated")] = toggleLockSelection,
 				}),
 				New("TextButton")({
-					Text = "Lock Rig Selection",
+					Text = "Lock rig selection",
 					Size = UDim2.new(1, -18, 0, 18),
 					LayoutOrder = 2,
 					BackgroundTransparency = 1,

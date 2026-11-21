@@ -17,6 +17,7 @@ local Observer = Fusion.Observer
 local StudioComponents = script.Parent.Parent.Parent.Components:FindFirstChild("StudioComponents")
 local Label = require(StudioComponents.Label)
 local Button = require(StudioComponents.Button)
+local MainButton = require(StudioComponents.MainButton)
 local Checkbox = require(StudioComponents.Checkbox)
 local VerticalCollapsibleSection = require(StudioComponents.VerticalCollapsibleSection)
 
@@ -65,6 +66,7 @@ local RBXM_ALTERNATIVE: { [string]: string } = {
 }
 
 local SharedComponents = require(script.Parent.Parent.SharedComponents)
+local Kit = require(script.Parent.Parent.Kit)
 local ExportBoneToggles = require(script.Parent.Parent.Components.ExportBoneToggles)
 
 local RiggingTab = {}
@@ -360,111 +362,105 @@ function RiggingTab.create(services: any)
 		end)
 	end
 
+	local idle = Computed(function()
+		return not bbBusy:get()
+	end)
+	local idleWithRig = Computed(function()
+		return State.activeRigExists:get() and not bbBusy:get()
+	end)
+	local function hover(text: string)
+		return function(on: boolean)
+			activeHint:set(if on then text else "")
+		end
+	end
+
 	return {
 		VerticalCollapsibleSection({
-			Text = "🔗 Blender → Studio",
+			Text = "Rig from Blender",
+			Subtitle = "bones you added or moved",
 			Collapsed = false,
 			LayoutOrder = 0,
 			[Children] = {
-				Button({
-					Text = "Push Rig from Blender",
-					Size = UDim2.new(1, 0, 0, 30),
-					Enabled = Computed(function()
-						return State.activeRigExists:get() and not bbBusy:get()
-					end),
-					Activated = function(): nil
+				Kit.Hint({
+					Text = "No skinned meshes: Push rig. Skinned meshes: Export Deform FBX in Blender, Import 3D here, then Bind imported mesh.",
+					LayoutOrder = 1,
+				}),
+				Kit.PrimaryButton({
+					Text = "Push rig",
+					LayoutOrder = 2,
+					Enabled = idleWithRig,
+					Activated = function()
 						runBB("Pushing rig", function()
 							return services.rigPushService:pushRig()
 						end)
-						return nil
 					end,
-					[OnEvent("MouseEnter")] = function()
-						activeHint:set(
-							"Creates bones/joints you added in Blender and updates rests you edited, then stamps the Blender bones so animations export 1:1. Skinned bones come in with Export Deform + Bind Imported Mesh."
-						)
-					end,
-					[OnEvent("MouseLeave")] = function()
-						activeHint:set("")
-					end,
-				}) :: any,
-				Button({
-					Text = "Bind Imported Mesh",
-					Size = UDim2.new(1, 0, 0, 30),
-					Enabled = Computed(function()
-						return State.activeRigExists:get() and not bbBusy:get()
-					end),
-					Activated = function(): nil
+					OnHover = hover(
+						"Creates bones/joints you added in Blender, updates rests you edited and stamps the Blender bones so animations export 1:1."
+					),
+				}),
+				Kit.Button({
+					Text = "Bind imported mesh",
+					LayoutOrder = 3,
+					Enabled = idleWithRig,
+					Activated = function()
 						runBB("Binding imported mesh", function()
 							return services.deformBindService:bindImportedMesh()
 						end)
-						return nil
 					end,
-					[OnEvent("MouseEnter")] = function()
-						activeHint:set(
-							"After Blender's 'Export Deform FBX' and Import 3D: fixes the import scale, places the mesh on the Blender rest, hangs its bones on the rig, keeps the texture and backs up the parts it replaces."
-						)
-					end,
-					[OnEvent("MouseLeave")] = function()
-						activeHint:set("")
-					end,
-				}) :: any,
-				New("Frame")({
-					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 0, 28),
+					OnHover = hover(
+						"After Import 3D: fixes the scale, places the mesh on the Blender rest, hangs its bones on the rig, keeps the texture and backs up the parts it replaces."
+					),
+				}),
+				Kit.FieldLabel({ Text = "Rig Doctor (selected rig or folder)", LayoutOrder = 4 }),
+				Kit.Row({
+					LayoutOrder = 5,
 					[Children] = {
-						New("UIListLayout")({ FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }),
-						Button({
-							Text = "Rig Doctor: Scan",
-							Size = UDim2.new(0.5, -2, 1, 0),
-							Enabled = Computed(function()
-								return not bbBusy:get()
-							end),
-							Activated = function(): nil
+						Kit.Button({
+							Text = "Scan",
+							LayoutOrder = 1,
+							Size = UDim2.new(0, 0, 1, 0),
+							Enabled = idle,
+							Activated = function()
 								runBB("Scanning rigs", function()
-									local message = services.rigDoctor:scan()
-									return { message = message }
+									return { message = services.rigDoctor:scan() }
 								end)
-								return nil
 							end,
-							[OnEvent("MouseEnter")] = function()
-								activeHint:set(
-									"Scans the selected rig, or every rig inside a selected folder, for nested AnimationControllers, missing PrimaryPart, duplicate bone names and importer leftovers."
-								)
-							end,
-							[OnEvent("MouseLeave")] = function()
-								activeHint:set("")
-							end,
+							OnHover = hover(
+								"Looks for nested AnimationControllers, missing PrimaryPart, duplicate bone names and importer leftovers."
+							),
 						}),
-						Button({
-							Text = "Fix All",
-							Size = UDim2.new(0.5, -2, 1, 0),
-							Enabled = Computed(function()
-								return not bbBusy:get()
-							end),
-							Activated = function(): nil
+						Kit.Button({
+							Text = "Fix all",
+							LayoutOrder = 2,
+							Size = UDim2.new(0, 0, 1, 0),
+							Enabled = idle,
+							Activated = function()
 								runBB("Fixing rigs", function()
 									return { message = services.rigDoctor:fixAll() }
 								end)
-								return nil
 							end,
 						}),
 					},
-				}) :: any,
-				Label({
-					Text = bbStatus,
-					TextWrapped = true,
-					TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
-					TextSize = 14,
-				}) :: any,
+				}),
+				Kit.Hint({
+					Text = Computed(function()
+						return if activeHint:get() ~= "" then activeHint:get() else bbStatus:get()
+					end),
+					LayoutOrder = 6,
+					Visible = Computed(function()
+						return activeHint:get() ~= "" or bbStatus:get() ~= ""
+					end),
+				}),
 			},
 		}),
 		VerticalCollapsibleSection({
-			Text = "📤 Studio → Blender (export rig)",
+			Text = "Send rig to Blender",
+			Subtitle = ".rbxm export",
 			Collapsed = true,
 			LayoutOrder = 1,
 			[Children] = {
-				Button({
-					Text = "Export Rig (RBXM)",
+				MainButton({
+					Text = "Export rig (.rbxm)",
 					Size = UDim2.new(1, 0, 0, 30),
 					Enabled = Computed(function()
 						return State.activeRigExists:get()
@@ -484,7 +480,7 @@ function RiggingTab.create(services: any)
 				}) :: any,
 				Checkbox({
 					Value = State.setRigOrigin,
-					Text = "Center Rig to Origin for Export",
+					Text = "Center rig at origin",
 					OnChange = function(newValue: boolean): nil
 						State.setRigOrigin:set(newValue)
 						return nil
@@ -499,11 +495,11 @@ function RiggingTab.create(services: any)
 					TextSize = 14,
 				}) :: any,
 				VerticalCollapsibleSection({
-					Text = "DISCONTINUED",
+					Text = "Old exporters (discontinued)",
 					Collapsed = true,
 					[Children] = {
 						Label({
-							Text = "RBXM and RBXL export is the new and preferred method of export, it supports PBR Materials, Layered Clothing, Terrain, Lighting, Decals, Beams, and multiple rigs can be exported at once. It's also way more predictable and consistent than trying to patch and work with the inconsistencies roblox's obj exporter provided. There will be no support for bugs on these older export buttons going forward and they will eventually be removed. Use the Export Rig (RBXM) button, or right-click your rig and Save To File (Do not export as obj).",
+							Text = "These exporters are no longer supported. Use Export rig (.rbxm) above, or right-click the rig and Save to File.",
 							TextWrapped = true,
 							TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
 							TextSize = 14,
@@ -564,7 +560,7 @@ function RiggingTab.create(services: any)
 						}) :: any,
 						Checkbox({
 							Value = State.setRigOrigin,
-							Text = "Center Rig to Origin for Export",
+							Text = "Center rig at origin",
 							OnChange = function(newValue: boolean): nil
 								State.setRigOrigin:set(newValue)
 								return nil
@@ -593,7 +589,8 @@ function RiggingTab.create(services: any)
 			},
 		}),
 		VerticalCollapsibleSection({
-			Text = "🗡 Export Weapon / Accessory",
+			Text = "Weapon or accessory",
+			Subtitle = "export to Blender",
 			Collapsed = true,
 			LayoutOrder = 2,
 			[Children] = {
@@ -650,9 +647,9 @@ function RiggingTab.create(services: any)
 					BorderSizePixel = 0,
 				}),
 				-- Export button
-				Button({
+				MainButton({
 					LayoutOrder = 5,
-					Text = "Export Weapon (RBXM)",
+					Text = "Export weapon (.rbxm)",
 					Size = UDim2.new(1, 0, 0, 32),
 					Enabled = Computed(function()
 						return State.selectedWeapon:get() ~= nil
@@ -671,7 +668,7 @@ function RiggingTab.create(services: any)
 					end,
 				}) :: any,
 				VerticalCollapsibleSection({
-					Text = "DISCONTINUED",
+					Text = "Old exporters (discontinued)",
 					Collapsed = true,
 					LayoutOrder = 6,
 					[Children] = {
