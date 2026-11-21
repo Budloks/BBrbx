@@ -121,6 +121,31 @@ function Kit.Hint(props: { Text: any, LayoutOrder: number?, Visible: any?, Color
 	})
 end
 
+-- Group label above a run of cards (Import / Export). Gap adds air above it
+-- so groups read as separate blocks.
+function Kit.SectionHeader(props: { Text: string, LayoutOrder: number?, Gap: number? })
+	return New("Frame")({
+		Name = "Section_" .. props.Text,
+		LayoutOrder = props.LayoutOrder,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 18 + (props.Gap or 0)),
+		[Children] = {
+			New("TextLabel")({
+				BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.fromScale(0, 1),
+				Size = UDim2.new(1, -4, 0, 18),
+				Text = string.upper(props.Text),
+				Font = Enum.Font.BuilderSansBold,
+				TextSize = Kit.SMALL_TEXT,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextColor3 = color(Enum.StudioStyleGuideColor.DimmedText),
+				[Children] = { Kit.padding(0, 0, 0, 2) },
+			}),
+		},
+	})
+end
+
 local function makeButton(props: any, primary: boolean)
 	local enabled = props.Enabled
 	local hovering = Value(false)

@@ -1,7 +1,12 @@
 --!strict
 
--- BBrbx Import/Export tab: "From Blender" card (connect, pick armature, import the
--- actions you tick - the default - or just the current timeline, live sync) and a collapsed "From file or clipboard" card.
+-- BBrbx Import/Export tab cards:
+--   From Blender        - pick armature, import the actions you tick (or just the
+--                         current timeline), live sync. Import only.
+--   Animation to Blender - send the animation playing in Studio to Blender.
+--   From file or clipboard.
+-- Connecting is automatic (see the auto-connect loop in the main script); the
+-- refresh icon in the card header reloads armatures and actions.
 
 local State = require(script.Parent.Parent.Parent.state)
 local Fusion = require(script.Parent.Parent.Parent.Packages.Fusion)
@@ -22,6 +27,9 @@ local Kit = require(script.Parent.Parent.Kit)
 local BulkActions = require(script.Parent.BulkActions)
 
 local AnimationImportControls = {}
+
+-- Studio's own refresh glyph (white, tinted by the card header)
+local REFRESH_ICON = "rbxasset://studio_svg_textures/Lua/FileSync/Dark/Standard/Refresh@2x.png"
 
 local function armatureRow(armature: any, order: number)
 	local hovering = Value(false)
@@ -106,6 +114,13 @@ function AnimationImportControls.createBlenderCard(services: any, layoutOrder: n
 		end),
 		Collapsed = false,
 		LayoutOrder = layoutOrder,
+		HeaderButton = {
+			Image = REFRESH_ICON,
+			Visible = connected,
+			Activated = function()
+				BulkActions.refreshAll(services)
+			end,
+		},
 		[Children] = {
 			-- Not connected: port + connect
 			Kit.FieldLabel({ Text = "Blender port", LayoutOrder = 1, Visible = disconnected }),
@@ -143,7 +158,7 @@ function AnimationImportControls.createBlenderCard(services: any, layoutOrder: n
 					local status = State.serverStatus:get()
 					return if status and status ~= "" and status ~= "Disconnected"
 						then status
-						else "Blender starts the server by itself when BBrbx is enabled."
+						else "Waiting for Blender. BBrbx connects by itself once Blender runs with the add-on."
 				end),
 				LayoutOrder = 3,
 				Visible = disconnected,
@@ -173,54 +188,21 @@ function AnimationImportControls.createBlenderCard(services: any, layoutOrder: n
 					end, Fusion.cleanup),
 				},
 			}),
-			BulkActions.createBody(services, 6, connected),
-			Kit.Row({
+			BulkActions.importBody(services, 6, connected),
+			Kit.Button({
+				Text = "Import current timeline",
 				LayoutOrder = 7,
 				Visible = connected,
-				[Children] = {
-					Kit.Button({
-						Text = "Import current timeline",
-						LayoutOrder = 1,
-						Size = UDim2.new(0, 0, 1, 0),
-						Enabled = hasArmature,
-						Activated = function()
-							State.loadingEnabled:set(true)
-							local ok = services.blenderSyncManager:importAnimationFromBlender()
-							State.loadingEnabled:set(false)
-							if not ok then
-								services.rigManager:addWarning("Failed to import animation from Blender")
-							end
-						end,
-						OnHover = hover("Imports only what's on the Blender timeline right now, without saving it."),
-					}),
-					Kit.Button({
-						Text = "Send to Blender",
-						LayoutOrder = 2,
-						Size = UDim2.new(0, 0, 1, 0),
-						Enabled = Computed(function()
-							return State.animationLength:get() > 0
-						end),
-						Activated = function()
-							State.loadingEnabled:set(true)
-							local ok = services.blenderSyncManager:exportAnimationToBlender()
-							State.loadingEnabled:set(false)
-							if not ok then
-								services.rigManager:addWarning("Failed to export animation to Blender")
-								return
-							end
-							local saved = State.selectedSavedAnim:get()
-							local name = if saved then (saved :: any).name else "the animation"
-							hint:set("Sent " .. tostring(name) .. " to Blender as an action.")
-							BulkActions.requestRefresh()
-							task.delay(4, function()
-								if hint:get():sub(1, 5) == "Sent " then
-									hint:set("")
-								end
-							end)
-						end,
-						OnHover = hover("Sends the animation playing in Studio to Blender."),
-					}),
-				},
+				Enabled = hasArmature,
+				Activated = function()
+					State.loadingEnabled:set(true)
+					local ok = services.blenderSyncManager:importAnimationFromBlender()
+					State.loadingEnabled:set(false)
+					if not ok then
+						services.rigManager:addWarning("Failed to import animation from Blender")
+					end
+				end,
+				OnHover = hover("Imports only what's on the Blender timeline right now, without saving it."),
 			}),
 			Checkbox({
 				Text = "Live sync (update while you animate)",
@@ -239,34 +221,57 @@ function AnimationImportControls.createBlenderCard(services: any, layoutOrder: n
 					end
 				end,
 			}),
-			Kit.Row({
-				LayoutOrder = 9,
-				Visible = connected,
-				[Children] = {
-					Kit.Button({
-						Text = "Refresh armatures",
-						LayoutOrder = 1,
-						Size = UDim2.new(0, 0, 1, 0),
-						Activated = function()
-							services.blenderSyncManager:updateAvailableArmatures()
-						end,
-					}),
-					Kit.Button({
-						Text = "Disconnect",
-						LayoutOrder = 2,
-						Size = UDim2.new(0, 0, 1, 0),
-						Activated = function()
-							services.blenderSyncManager:toggleServerConnection()
-						end,
-					}),
-				},
-			}),
 			Kit.Hint({
 				Text = hint,
 				LayoutOrder = 10,
 				Visible = Computed(function()
 					return hint:get() ~= ""
 				end),
+			}),
+		},
+	})
+end
+
+-- Export side: Studio animation -> Blender action
+function AnimationImportControls.createSendCard(services: any, layoutOrder: number)
+	local hint = Value("")
+	return VerticalCollapsibleSection({
+		Text = "Animation to Blender",
+		Subtitle = Computed(function()
+			local saved = State.selectedSavedAnim:get()
+			return if saved then (saved :: any).name else "play an animation first"
+		end),
+		Collapsed = false,
+		LayoutOrder = layoutOrder,
+		[Children] = {
+			Kit.PrimaryButton({
+				Text = "Send to Blender",
+				LayoutOrder = 1,
+				Enabled = Computed(function()
+					return State.isServerConnected:get() and State.animationLength:get() > 0
+				end),
+				Activated = function()
+					State.loadingEnabled:set(true)
+					local ok = services.blenderSyncManager:exportAnimationToBlender()
+					State.loadingEnabled:set(false)
+					if not ok then
+						hint:set("Could not send it. Is Blender connected and an armature picked?")
+						return
+					end
+					local saved = State.selectedSavedAnim:get()
+					local name = if saved then (saved :: any).name else "The animation"
+					hint:set(tostring(name) .. " is now an action in Blender.")
+					BulkActions.requestRefresh()
+				end,
+			}),
+			Kit.Hint({
+				Text = Computed(function()
+					if hint:get() ~= "" then
+						return hint:get()
+					end
+					return "Sends the animation playing in Studio to the picked armature as an action."
+				end),
+				LayoutOrder = 2,
 			}),
 		},
 	})

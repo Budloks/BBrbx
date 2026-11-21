@@ -57,10 +57,10 @@ function MoreTab.create(services: any)
 					LayoutOrder = 1,
 					OnChange = function(enabled: boolean): nil
 						State.autoConnectToBlender:set(enabled)
-						services.plugin:SetSetting("AutoConnectToBlender", enabled)
+						services.plugin:SetSetting("BBAutoConnect", enabled)
 						return nil
 					end,
-				}, activeHint, "Connects to BBrbx in Blender when the plugin opens.")),
+				}, activeHint, "Connects whenever BBrbx in Blender is running, and reconnects after Blender restarts.")),
 				Checkbox(withHint({
 					Value = State.enableLiveSync,
 					Text = "Live Sync (update while you animate)",

@@ -1,7 +1,8 @@
 -- BBrbx card section.
 -- Same props as the original StudioComponents section (Text, Collapsed,
 -- Enabled, Padding, OnCollapsedChanged, LayoutOrder, Children) plus an optional
--- Subtitle shown on the right of the header. Renders as a rounded card with a
+-- Subtitle shown on the right of the header, and an optional HeaderButton
+-- ({ Image, Activated, Visible?, Spin? }) drawn as an icon in the header corner. Renders as a rounded card with a
 -- 30px header and a 10px padded body, so every tab gets the same rhythm.
 
 local Plugin = script:FindFirstAncestorWhichIsA("Plugin")
@@ -42,6 +43,7 @@ return function(props: Props): Frame
 	local shouldBeCollapsed = getState(props.Collapsed, false, "Value")
 	local isEnabled = getState(props.Enabled, true)
 	local isHovering = Value(false)
+	local isHeaderButtonHover = Value(false)
 
 	local isCollapsed = Computed(function()
 		return if unwrap(isEnabled) then unwrap(shouldBeCollapsed) else true
@@ -56,6 +58,18 @@ return function(props: Props): Frame
 	if not unwrap(isCollapsed) then
 		notify()
 	end
+
+	local headerButton = props.HeaderButton
+	local headerButtonVisible = Computed(function()
+		if not headerButton then
+			return false
+		end
+		local v = headerButton.Visible
+		if v == nil then
+			return true
+		end
+		return unwrap(v) and true or false
+	end)
 
 	local title = Computed(function()
 		return cleanTitle(tostring(unwrap(props.Text) or ""))
@@ -138,7 +152,9 @@ return function(props: Props): Frame
 						Name = "Subtitle",
 						BackgroundTransparency = 1,
 						AnchorPoint = Vector2.new(1, 0),
-						Position = UDim2.fromScale(1, 0),
+						Position = Computed(function()
+							return if headerButtonVisible:get() then UDim2.new(1, -24, 0, 0) else UDim2.fromScale(1, 0)
+						end),
 						Size = UDim2.new(0.5, 0, 1, 0),
 						Visible = props.Subtitle ~= nil,
 						Text = props.Subtitle or "",
@@ -148,6 +164,35 @@ return function(props: Props): Frame
 						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
 					}),
+					if headerButton
+						then New("ImageButton")({
+							Name = "HeaderButton",
+							AnchorPoint = Vector2.new(1, 0.5),
+							Position = UDim2.new(1, 2, 0.5, 0),
+							Size = UDim2.fromOffset(20, 20),
+							BackgroundTransparency = 1,
+							Visible = headerButtonVisible,
+							Image = headerButton.Image,
+							Rotation = headerButton.Rotation,
+							ImageColor3 = Computed(function()
+								local style = if isHeaderButtonHover:get()
+									then Enum.StudioStyleGuideColor.BrightText
+									else Enum.StudioStyleGuideColor.DimmedText
+								return themeProvider:GetColor(style):get()
+							end),
+							[OnEvent("MouseEnter")] = function()
+								isHeaderButtonHover:set(true)
+							end,
+							[OnEvent("MouseLeave")] = function()
+								isHeaderButtonHover:set(false)
+							end,
+							[OnEvent("Activated")] = function()
+								if headerButton.Activated then
+									headerButton.Activated()
+								end
+							end,
+						})
+						else nil,
 				},
 			}),
 			New("Frame")({

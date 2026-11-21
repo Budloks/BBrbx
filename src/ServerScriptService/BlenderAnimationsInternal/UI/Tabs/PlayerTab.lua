@@ -21,6 +21,7 @@ local VerticalCollapsibleSection = require(StudioComponents.VerticalCollapsibleS
 
 local Kit = require(script.Parent.Parent.Kit)
 local AnimationImportControls = require(script.Parent.Parent.Components.AnimationImportControls)
+local BulkActions = require(script.Parent.Parent.Components.BulkActions)
 
 local PlayerTab = {}
 
@@ -79,7 +80,7 @@ function PlayerTab.create(services: any)
 	end
 
 	local saveCard = VerticalCollapsibleSection({
-		Text = "Save",
+		Text = "Save / Upload",
 		Collapsed = false,
 		LayoutOrder = 2,
 		[Children] = {
@@ -144,6 +145,14 @@ function PlayerTab.create(services: any)
 					return hint:get() ~= ""
 				end),
 			}),
+			New("Frame")({
+				Name = "Divider",
+				LayoutOrder = 8,
+				Size = UDim2.new(1, 0, 0, 1),
+				BorderSizePixel = 0,
+				BackgroundColor3 = Kit.color(Enum.StudioStyleGuideColor.Border),
+			}),
+			BulkActions.uploadBody(services, 9),
 		},
 	})
 
@@ -192,6 +201,7 @@ function PlayerTab.create(services: any)
 		save = saveCard,
 		saved = savedCard,
 		fromFile = AnimationImportControls.createLegacyCard(services, 4),
+		sendAnimation = AnimationImportControls.createSendCard(services, 5),
 	}
 end
 

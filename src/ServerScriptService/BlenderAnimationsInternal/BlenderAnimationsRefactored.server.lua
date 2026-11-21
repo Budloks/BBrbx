@@ -298,25 +298,7 @@ table.insert(
 	end)
 )
 
--- Prevent autoconnect from continuously retrying on state changes
-local autoConnectAttemptedThisSession = false
-table.insert(
-	State.observers,
-	Observer(State.autoConnectToBlender):onChange(function()
-		if State.autoConnectToBlender:get() and not autoConnectAttemptedThisSession then
-			-- Only allow autoconnect to attempt once per session to prevent continuous retries
-			autoConnectAttemptedThisSession = true
-			blenderSyncManager.autoConnectAttempts = 0 -- Reset for manual attempt
-			task.spawn(function()
-				task.wait(0.5)
-				if blenderSyncManager.autoConnectAttempts < blenderSyncManager.maxAutoConnectAttempts then
-					blenderSyncManager.autoConnectAttempts = (blenderSyncManager.autoConnectAttempts or 0) + 1
-					blenderSyncManager:toggleServerConnection()
-				end
-			end)
-		end
-	end)
-)
+-- Auto-connect runs as a background loop (see "BBrbx auto-connect" below).
 
 do -- Creates the plugin
 	local pluginToolbar = Toolbar({
@@ -485,26 +467,50 @@ do -- Creates the plugin
     end
     local els = plugin:GetSetting("EnableLiveSync")
     if typeof(els) == "boolean" then State.enableLiveSync:set(els) end
-    local ac = plugin:GetSetting("AutoConnectToBlender")
+    -- BBrbx: own key, on by default (the old RBXMonkey key could hold false)
+    local ac = plugin:GetSetting("BBAutoConnect")
     if typeof(ac) == "boolean" then State.autoConnectToBlender:set(ac) end
 	local rm = plugin:GetSetting("ReducedMotion")
 	if typeof(rm) == "boolean" then State.reducedMotion:set(rm) end
     local sd = plugin:GetSetting("ShowDebugInfo")
     if typeof(sd) == "boolean" then State.showDebugInfo:set(sd) end
     
-    -- Auto-connect to Blender if enabled
-    if State.autoConnectToBlender:get() then
-        task.spawn(function()
-            task.wait(1) -- Wait a bit for everything to initialize
-            -- Add safeguard to prevent continuous retry attempts
-            blenderSyncManager.autoConnectAttempts = (blenderSyncManager.autoConnectAttempts or 0) + 1
-            if blenderSyncManager.autoConnectAttempts > blenderSyncManager.maxAutoConnectAttempts then
-                warn("Auto-connect to Blender failed after " .. blenderSyncManager.maxAutoConnectAttempts .. " attempts. Giving up.")
-                return
+    -- BBrbx auto-connect: while the plugin is open, quietly ping Blender every
+    -- few seconds. Connect as soon as it answers, drop the link when it stops
+    -- answering (Blender closed), and connect again when it comes back.
+    -- Closing the plugin disconnects (cleanupAll).
+    task.spawn(function()
+        local HttpService = game:GetService("HttpService")
+        local misses = 0
+        local function ping(): boolean
+            local ok = pcall(function()
+                HttpService:GetAsync("http://localhost:" .. tostring(State.serverPort:get()) .. "/bb/ping", true)
+            end)
+            return ok
+        end
+        task.wait(1)
+        while true do
+            if State.widgetsEnabled:get() and State.autoConnectToBlender:get() then
+                if not State.isServerConnected:get() then
+                    if ping() and not State.isServerConnected:get() then
+                        blenderSyncManager:toggleServerConnection()
+                    end
+                    misses = 0
+                elseif not State.liveSyncEnabled:get() then
+                    if ping() then
+                        misses = 0
+                    else
+                        misses += 1
+                        if misses >= 3 and State.isServerConnected:get() then
+                            misses = 0
+                            blenderSyncManager:cleanupServerConnection()
+                        end
+                    end
+                end
             end
-            blenderSyncManager:toggleServerConnection()
-        end)
-    end
+            task.wait(3)
+        end
+    end)
 
 	-- BBrbx: horizontal tab bar (Animate / Rig / Tools / Settings)
 	local function createTabsUI()
@@ -614,10 +620,13 @@ do -- Creates the plugin
 	end
 	local tabContent = {
 		["Import/Export"] = place({
-			rigCards.sendRig,
+			Kit.SectionHeader({ Text = "Import" }),
 			animateCards.fromBlender,
 			rigCards.rigFromBlender,
 			animateCards.fromFile,
+			Kit.SectionHeader({ Text = "Export", Gap = 12 }),
+			rigCards.sendRig,
+			animateCards.sendAnimation,
 			rigCards.exportBones,
 		}),
 		["Play/Upload"] = place({
