@@ -1,74 +1,152 @@
 # BBrbx (fork)
 
-Blender ⇄ Roblox Studio: rigi i animacje. Swobodna edycja riga w Blenderze, wbudowane Bulk Actions, automatyczna weryfikacja importu i poprawki błędów. Zastępuje oficjalny plugin (te same porty).
+Blender ⇄ Roblox Studio: rigi i animacje. Fork RBXMonkey 3.1.3, który zastępuje oficjalny plugin i działa na tym samym porcie (31337).
+
+Najważniejsze różnice względem oryginału:
+- kości dodane w Blenderze trafiają do Studio jednym kliknięciem i eksportują się 1:1,
+- meshe, które się zginają, mają własną drogę do Robloxa,
+- skalę broni zmieniasz bez wyrzucania animacji,
+- wbudowane są import wielu akcji, upload i automatyczna kontrola importu.
 
 **Gdzie co jest:**
-- Blender: View3D → Sidebar (N) → zakładka **BBrbx**: status połączenia i armatura na górze, pod spodem sekcje Import (rig .rbxm, rig setup, animacja z .fbx, legacy .obj), Export (bake, Export Deform FBX, ustawienia akcji), Utility (weld bones, Rig check, deform scale, aktywna kość) i Advanced (constrainty, środek masy, face controls, walidacja UGC, konto, About).
-- Studio: przycisk **BBrbx** na pasku pluginów, zakładki **Import/Export / Play/Upload / Extras / Settings**.
+- **Blender:** View3D → Sidebar (N) → zakładka **BBrbx**. Na górze są status Studio, port i armatura. Niżej:
+  - **Import**: rig .rbxm, Rig setup, animacja z .fbx, legacy .obj,
+  - **Export**: bake bez Studio, Export Deform FBX,
+  - **Utility**: weld bones, Rig check, deform scale, aktywna kość,
+  - **Advanced**: constrainty, środek masy, face, walidacja, konto, About.
+- **Studio:** przycisk **BBrbx** na pasku pluginów. Zakładki:
+  - **Import/Export** (nagłówki Import i Export),
+  - **Play/Upload**,
+  - **Extras**,
+  - **Settings**.
 
 ## Instalacja
 
-1. **Blender:** w Edit → Preferences → Add-ons odinstaluj „RBXMonkey - Roblox Importer/Exporter” oraz stary dodatek „RBXMonkey Bulk Actions”. Potem zainstaluj `build/bbrbx_<wersja>.zip` przez Install from Disk.
-2. **Studio:** uruchom `build_plugin.bat --install`, który kopiuje plik do `%LOCALAPPDATA%\Roblox\Plugins\BBrbx.rbxm`. Następnie w Plugins → Manage Plugins wyłącz oficjalny RBXMonkey i usuń z folderu Plugins plik `RBXMonkeyBulkImport.rbxmx`.
+1. **Blender:** w Edit → Preferences → Add-ons odinstaluj „RBXMonkey - Roblox Importer/Exporter” i stary dodatek „RBXMonkey Bulk Actions”. Potem przez Install from Disk zainstaluj `build/bbrbx_<wersja>.zip`. Serwer dla Studio startuje sam razem z Blenderem; wyłączysz to w ustawieniach dodatku.
+2. **Studio:** `build_plugin.bat --install` kopiuje plik do `%LOCALAPPDATA%\Roblox\Plugins\BBrbx.rbxm`. W Plugins → Manage Plugins wyłącz oficjalny RBXMonkey i usuń z folderu Plugins plik `RBXMonkeyBulkImport.rbxmx`. Zmiany pluginu działają po restarcie Studio.
 
-Porty zostają te same (31337), a stare pliki `.blend` i rigi działają bez zmian.
+Port zostaje ten sam (31337), więc stare pliki `.blend` i rigi działają bez zmian. Studio łączy się z Blenderem samo, gdy tylko Blender działa. Rozłączenie zauważa i po powrocie Blendera łączy się ponownie.
 
-## Workflow: edytuję rig w Blenderze → Roblox
+## Import animacji z Blendera
 
-**Bez siatek skinned** (dodałeś lub przesunąłeś kości, stawy, bełt, rączkę…):
-- W Studio: zakładka Import/Export → **Synchronise**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
+Import/Export → karta **Import Animation**:
+1. Zaznacz akcje na liście albo „All”. Lista odświeża się sama po restarcie Blendera, przeładowaniu dodatku albo otwarciu innego `.blend`. Ikonka w rogu karty odświeża ją ręcznie.
+2. W **Import options** ustawisz domyślny priorytet i loop oraz to, czy zastępować zapisy o tej samej nazwie.
+3. **Import selected actions**: każda akcja trafia do AnimSaves riga jako osobna animacja.
 
-**Z siatkami skinned** (łuk, kusza, cokolwiek, co się wygina):
-1. Blender: Sidebar → BBrbx → **Export** → **Export Deform FBX**.
+Nadpisywane zapisy najpierw lądują w `ServerStorage/BBrbx_AnimBackups`.
+
+**Kontrola importu.** Po każdym imporcie Studio porównuje pozy stawów z Blenderem w kilku klatkach. Ostrzega tylko wtedy, gdy coś się nie zgadza, i podaje przyczynę. Może to być na przykład:
+- staw, którego nie ma w rigu,
+- zagnieżdżony AnimationController,
+- inny spoczynek, z odchyłką w studach lub stopniach.
+
+W tym samym komunikacie jest sposób naprawy.
+
+**W drugą stronę:** odtwórz animację w Studio i kliknij Export Animation → **Send to Blender**. Akcja pojawi się w Blenderze pod tą samą nazwą. Jeśli akcja o tej nazwie już była, jej poprzednia wersja zostaje jako „… (before Studio)”.
+
+## Upload
+
+Play/Upload → karta **Save / Upload**:
+1. Na liście „Local saves (AnimSaves)” zaznacz animacje albo „All”.
+2. W **Upload options** wybierz z listy „Upload to” siebie albo grupę. Lista pokazuje grupy, w których masz uprawnienia.
+3. Opcje do włączenia:
+   - „Keep the same asset ID when re-uploading”, gdy aktualizujesz istniejące animacje,
+   - „Write an AnimationIds ModuleScript”, który tworzy mapę nazwa → id gotową do `require`.
+4. **Upload selected**. Folder z obiektami Animation powstaje zawsze, a upload nie robi dodatkowej kopii w AnimSaves.
+
+Zapisane animacje są też na pasku pod odtwarzaczem w Play/Upload (biały romb oznacza zapis lokalny). Pole Name pokazuje nazwę grającej animacji.
+
+## Edytuję rig w Blenderze → Roblox
+
+**Kości bez meshu deform** (nowa kość, przesunięty staw, bełt, rączka, laser):
+- W Studio: Import/Export → Synchronise Rig → **Synchronise**.
+- Brakujące Motor6D i Bone zostaną utworzone, a przesunięty spoczynek zaktualizowany. Wrócą też części usunięte poza pluginem.
+- Kości w Blenderze dostają dokładną ramkę Robloxa, więc eksport idzie 1:1 bez zgadywania osi (dawny obrót o 180° wokół Y).
+- Ctrl+Z w Studio cofa cały Synchronise jednym krokiem.
+
+**Meshe, które się zginają** (pas, cięciwa, kabel):
+1. Blender: BBrbx → Export → **Export Deform FBX**. Plik zapisze się obok `.blend`.
 2. Studio: Home → Import 3D, z domyślnymi ustawieniami.
-3. Studio: Import/Export → Synchronise Rig → **Append deform mesh**.
+3. Studio: Synchronise Rig → **Append deform mesh**.
 
-Bind sam poprawia skalę, usuwa zagnieżdżony AnimationController, stawia siatkę na spoczynku z Blendera, przepina kości pod rig, zachowuje teksturę i odkłada zastąpione części do ServerStorage.
+Append deform mesh robi resztę za Ciebie:
+- poprawia skalę,
+- usuwa zagnieżdżony AnimationController,
+- stawia mesh na spoczynku z Blendera,
+- przepina kości pod rig,
+- zachowuje teksturę,
+- odkłada zastąpione części do ServerStorage.
 
-Potem animujesz i importujesz normalnie. Kości dodane w Blenderze dostają przy eksporcie prawdziwy spoczynek ze Studio, więc koniec ze zgadywaniem osi (dawny obrót o 180° wokół Y).
+Przy eksporcie animacji takich rigów plugin pomija pozy, które Roblox i tak odtworzy. Na TAC50 z paskiem zostaje 352 pozy zamiast 3416, a animacja wygląda tak samo.
 
-**Kości pomocnicze** (IK, pole, kontrolki) nie trafiają do Robloxa. W sekcji Utility (BBrbx) możesz to zmienić dla wybranej kości: Always / Auto / Never.
+**Kości pomocnicze** (IK, pole, kontrolki) domyślnie nie trafiają do Robloxa. Dla każdej kości zmienisz to w Utility → aktywna kość: **Always / Auto / Never**.
+- Kość ruszana przez helper zachowuje jego interpolację (Constant, Linear, Bezier).
+- Kość podpięta pod helper liczy ruch od najbliższego rodzica, który jest stawem w Robloxie.
 
-**Przebudowa riga** (Generate rig) ma teraz opcję **Keep my bones**: zachowuje twoje kości, constrainty i akcję.
+**Nazwy kości** możesz zmieniać, bo kanał trzyma nazwę z Robloxa. Kopia kości (Shift+D) nie nadpisuje oryginału.
 
-## Bulk Actions (wbudowane)
+**Przebudowa riga:** Import → Rig setup → Generate / rebuild armature ma opcję **Keep my bones**. Zachowuje ona Twoje kości, ich wagi, constrainty i akcje.
 
-Zakładka Import/Export → karta **From Blender** (lista akcji):
-- import wszystkich akcji z Blendera jako osobnych KeyframeSequence w AnimSaves,
-- upload z zachowaniem ID i ModuleScript `AnimationIds` z mapą nazwa → id,
-- zaznaczanie tylko akcji zmienionych od ostatniego uploadu,
-- nadpisywane zapisy lądują w `ServerStorage/BBrbx_AnimBackups`.
+## Skala broni
 
-Priorytet, loop i nazwę docelową ustawisz dla każdej akcji w sekcji Animation (BBrbx) w Blenderze.
+Broń jest za mała albo za duża względem rąk, a animacja już jest zrobiona:
+1. W Blenderze w Pose Mode przeskaluj kość broni, np. `Handle`. Może to być klucz albo zwykła wartość, w dowolnej akcji. Dwie bronie (akimbo) skaluj osobno, np. 1.2 i 2.
+2. W Studio kliknij **Synchronise**.
+   - Plugin bierze największą skalę każdej kości ze wszystkich klatek i akcji, albo najmniejszą, jeśli kość była tylko zmniejszana.
+   - Broń rośnie w Blenderze i w Studio: części, meshe, stawy, attachmenty i kości.
+   - Przesunięcia części broni w animacjach (magazynek, zamek) mnożą się przez skalę, także w AnimSaves (wcześniej robiona jest kopia).
+   - Ruch samej broni w dłoni zostaje bez zmian.
+   - Klucze skali znikają, bo rozmiar siedzi już w rigu.
 
-## Automatyczna kontrola importu
+Na co uważać:
+- **Zmiana w Blenderze jest trwała.** Jeśli chcesz mieć wersję sprzed skalowania, zapisz `.blend` przed Synchronise.
+- **Chowanie przez skalę jest pomijane.** Skala, która schodzi do 0 i wraca (np. chowany magazynek), nie zmienia rozmiaru broni.
+- **Opublikowane już animacje** trzeba wrzucić ponownie.
+- **`Model:ScaleTo` nie jest używane**, bo Animator przeskalowałby animacje drugi raz.
 
-Po każdym imporcie Studio po cichu sprawdza, czy rig odtwarza animację tak samo jak Blender. Pozycje stawów są porównywane w kilku klatkach. Jeśli coś się nie zgadza, w nagłówku pojawi się ostrzeżenie z przyczyną:
-- staw nie istnieje w rigu,
-- staw jest pomijany przez zagnieżdżony AnimationController,
-- inny spoczynek,
-- odwrócone osie.
+## Rig Doctor i Rig check
 
-## Rig Doctor
+- **Studio:** zaznacz rig albo cały folder z rigami i kliknij Synchronise Rig → **Scan for issues**. Skan szuka:
+  - zagnieżdżonych AnimationController i Humanoid,
+  - braku PrimaryPart,
+  - zduplikowanych nazw kości,
+  - pozostałości importera.
 
-Rig → **Rig Doctor: Scan** sprawdza zaznaczony rig albo cały folder z rigami. Szuka zagnieżdżonych AnimationController/Humanoid, braku PrimaryPart, zduplikowanych nazw kości i pozostałości importera. **Fix All** naprawia bezpieczne przypadki (Ctrl+Z cofa).
+  **Fix issues** naprawia bezpieczne przypadki (Ctrl+Z cofa).
+- **Blender:** Utility → **Rig check** pokazuje jedną linijkę statusu riga, a szczegóły tylko przy problemie. Aktywna kość pokazuje obrót i pozycję w osiach Robloxa, tak jak zobaczysz je w Studio.
 
 ## Naprawione błędy
 
-- Kamera nie trzyma się już starego riga po zmianie riga. Śledzi część po nazwie, przepina się na nowy rig albo odpina. Działa też na Bone'ach i przywraca poprzednie ustawienia kamery. Jest skrót „BBrbx: Attach/Detach Camera”.
-- Zaznaczenie podmodelu broni z resztkowym AnimationController wybiera rig nadrzędny.
-- Legacy export nie przełącza aktywnego riga na tymczasowy klon.
-- Nowa karta riga nie dziedziczy stanu poprzedniego riga. Tryb multi-rig nie zatrzymuje innych otwartych rigów.
-- Kanały są kluczowane nazwą Roblox, więc zmiana nazwy kości w Blenderze nic nie psuje. Kopie kości (Shift+D) nie nadpisują oryginału.
+- Kamera nie trzyma się starego riga po zmianie riga. Przepina się na nowy rig albo odpina i działa też na Bone'ach. Ma skrót „BBrbx: Attach/Detach Camera”.
+- Zaznaczenie podmodelu broni z zagnieżdżonym AnimationController wybiera rig nadrzędny.
+- Nowa karta riga nie przejmuje stanu poprzedniego, a tryb multi-rig nie zatrzymuje innych rigów.
+- Kość główna nie spada o 3.6 studa przy przenoszeniu animacji ze Studio do Blendera.
+- Kość pod helperem nie przesuwa się w Studio.
+- Krok Constant nie dostaje jednoklatkowej rampy, gdy rodzic się obraca.
+- Synchronise nie pomija luźnych kości bez rodzica.
+- Plugin nie trzyma armatury z poprzedniego pliku Blendera.
+- Skalowanie broni przy grającym podglądzie nie zapisuje pozy z animacji w spoczynku.
 - Import kości Motor6D ze skinned mesh idzie dokładną ścieżką (round-trip Studio → Blender → Studio).
-- Plugin nie budował się z repo (brak Packages). Fusion i Promise są teraz w `vendor/Packages.rbxm`.
+- Przyciski, które wyglądały na wyszarzone, działają normalnie, a podpowiedzi pokazują się w swojej karcie.
+- Suwak FOV nie wypisuje błędów w konsoli.
+- Plugin budował się z repo tylko z ręcznie dociągniętymi Packages. Fusion i Promise są teraz w `vendor/Packages.rbxm`.
+
+## Ograniczenia
+
+- **Kość z wyłączonym Inherit Rotation** wraca z błędem przy przenoszeniu animacji ze Studio do Blendera. Z Blendera do Studio działa dobrze.
+- **Roblox nie animuje skali.** Skala kości zamienia się w stały rozmiar przy Synchronise.
+- **Helper skalowanej broni wiszący poza nią** (np. na HumanoidRootPart) skaluje się dokładnie tylko wtedy, gdy broń stoi w spoczynku.
+- **Lewa ręka może odjechać od chwytu** po powiększeniu broni, jeśli jej cel IK nie jest podpięty pod broń.
 
 ## Dla deweloperów
 
 - `build_plugin.bat [--install]` buduje plugin (Rojo, `plugin.project.json`).
 - `python tools/bb/build_addon.py` buduje paczkę rozszerzenia Blendera.
 - `lune run tools/bb/luau_check.luau` sprawdza kompilację wszystkich plików pluginu.
-- Testy addonu (z repo, bez instalowania) uruchamiasz tak: `blender -b --factory-startup --python tools/bb/blender_bootstrap.py -- unittest:test_rest_contract`.
+- Testy dodatku uruchamiasz z repo, bez instalowania: `blender -b --factory-startup --python tools/bb/blender_bootstrap.py -- unittest:test_rest_contract`.
+- Działający Blender przeładuje dodatek bez restartu: `curl -X POST localhost:31337/bb/reload_addon`. Wcześniej skopiuj nowe pliki do `%APPDATA%\Blender Foundation\Blender\<wersja>\extensions\user_default\roblox_animations_importer_exporter`.
+- **Nie instaluj dodatku komendą `blender --factory-startup -c extension install-file …`.** Instalacja zapisuje ustawienia Blendera, a z `--factory-startup` nadpisuje Twoje `userpref.blend` fabrycznymi.
 
 ## Credits
 
