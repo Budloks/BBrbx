@@ -30,8 +30,16 @@ class RbxAnimationsPreferences(AddonPreferences):
         default="",
     )
 
+    # BBrbx: no more clicking "Start Server" every time Blender opens
+    bb_autostart_server: bpy.props.BoolProperty(
+        name="Start the Studio server automatically",
+        description="Start the animation server when Blender starts and when a .blend is opened",
+        default=True,
+    )
+
     def draw(self, context):
         layout = self.layout
+        layout.prop(self, "bb_autostart_server")
         row = layout.row(align=True)
         row.prop(self, "roblox_content_path")
         row.operator(
@@ -218,8 +226,29 @@ def _safe_register_class(cls):
 
 
 @bpy.app.handlers.persistent
+def _bb_autostart_server():
+    """BBrbx: start the animation server if the preference allows it."""
+    try:
+        addon = bpy.context.preferences.addons.get(__name__)
+        prefs = addon.preferences if addon else None
+        if prefs is not None and not getattr(prefs, "bb_autostart_server", True):
+            return None
+        if server.is_server_running():
+            return None
+        scene = getattr(bpy.context, "scene", None)
+        settings = getattr(scene, "rbx_anim_settings", None) if scene else None
+        port = int(getattr(settings, "rbx_server_port", 0) or 31337)
+        if server.start_server(port):
+            print(f"BBrbx: animation server started on port {port}")
+    except Exception as exc:
+        print(f"BBrbx: could not auto-start the server: {exc}")
+    return None
+
+
 def _on_blend_file_loaded(dummy):
     server.load_handler(dummy)
+    if not bpy.app.background:
+        bpy.app.timers.register(_bb_autostart_server, first_interval=0.5)
 
 
 def _remove_blend_file_load_handlers():
@@ -292,6 +321,8 @@ def register():
 
         _remove_blend_file_load_handlers()
         bpy.app.handlers.load_post.append(_on_blend_file_loaded)
+        if not bpy.app.background:
+            bpy.app.timers.register(_bb_autostart_server, first_interval=1.0)
 
     except Exception as e:
         print(f"Error registering Roblox Animations addon: {e}")
