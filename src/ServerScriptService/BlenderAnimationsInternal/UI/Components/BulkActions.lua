@@ -129,16 +129,33 @@ function BulkActions.createBody(services: any, layoutOrder: number, visible: any
 		end
 	end
 
-	-- BBrbx: keep the list current without pressing Refresh.
+	-- BBrbx: keep the list current without pressing Refresh. Rig state settles a
+	-- moment after the selection changes, so wait a beat before asking Blender.
+	local pending = false
 	local function autoRefresh()
-		if State.isServerConnected:get() and State.activeRigExists:get() and not busy:get() then
-			task.spawn(refresh)
+		if pending then
+			return
 		end
+		pending = true
+		task.delay(0.3, function()
+			pending = false
+			if not State.isServerConnected:get() or busy:get() then
+				return
+			end
+			if not State.activeRigExists:get() then
+				rows:set({})
+				status:set("Select a rig to list its actions.")
+				return
+			end
+			refresh()
+		end)
 	end
 	Fusion.Observer(State.isServerConnected):onChange(autoRefresh)
 	Fusion.Observer(State.activeSessionRig):onChange(autoRefresh)
+	Fusion.Observer(State.activeRigExists):onChange(autoRefresh)
+	Fusion.Observer(State.rigModelName):onChange(autoRefresh)
 	Fusion.Observer(State.selectedArmature):onChange(autoRefresh)
-	task.defer(autoRefresh)
+	autoRefresh()
 
 	local enabledIdle = Computed(function()
 		return State.activeRigExists:get() and not busy:get()

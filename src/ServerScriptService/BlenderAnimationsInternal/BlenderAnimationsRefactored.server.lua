@@ -508,6 +508,7 @@ do -- Creates the plugin
 
 	-- BBrbx: horizontal tab bar (Animate / Rig / Tools / Settings)
 	local function createTabsUI()
+		local function makeButtons()
 		local buttons: { [any]: any } = {
 			New("UIListLayout")({
 				FillDirection = Enum.FillDirection.Horizontal,
@@ -560,9 +561,12 @@ do -- Creates the plugin
 				}),
 			}))
 		end
+		return buttons
+		end
 		return New("Frame")({
 			Name = "TabBar",
-			ZIndex = 2,
+			-- The widget uses Global ZIndex: keep the bar at 1 so its buttons draw on top of it.
+			ZIndex = 1,
 			Position = UDim2.fromOffset(0, RIG_TABS_HEIGHT),
 			Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT),
 			BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.MainBackground),
@@ -572,7 +576,10 @@ do -- Creates the plugin
 					Name = "Buttons",
 					BackgroundTransparency = 1,
 					Size = UDim2.fromScale(1, 1),
-					[Children] = buttons,
+					[Children] = Computed(function()
+						local _ = State.tabs:get()
+						return makeButtons()
+					end, Fusion.cleanup),
 				}),
 				New("Frame")({
 					Name = "Divider",

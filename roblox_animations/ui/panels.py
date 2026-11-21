@@ -120,7 +120,7 @@ class OBJECT_PT_RbxAnimations(_BBrbxPanel, bpy.types.Panel):
 
         row = layout.row(align=True)
         row.label(
-            text="Studio link running" if running else "Studio link stopped",
+            text="Studio: on" if running else "Studio: off",
             icon="LINKED" if running else "UNLINKED",
         )
         if running:

@@ -104,16 +104,18 @@ return function(props: Props): Frame
 						PaddingLeft = UDim.new(0, BODY_PAD),
 						PaddingRight = UDim.new(0, BODY_PAD),
 					}),
-					New("TextLabel")({
+					New("ImageLabel")({
 						Name = "Chevron",
 						BackgroundTransparency = 1,
-						Size = UDim2.new(0, 12, 1, 0),
-						Text = Computed(function()
-							return if unwrap(isCollapsed) then "▸" else "▾"
+						AnchorPoint = Vector2.new(0, 0.5),
+						Position = UDim2.new(0, 1, 0.5, 0),
+						Size = UDim2.fromOffset(9, 9),
+						Image = "rbxassetid://5607705156",
+						ImageRectSize = Vector2.new(10, 10),
+						ImageRectOffset = Computed(function()
+							return if unwrap(isCollapsed) then Vector2.new(0, 0) else Vector2.new(10, 0)
 						end),
-						Font = Enum.Font.BuilderSansBold,
-						TextSize = 14,
-						TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
+						ImageColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
 					}),
 					New("TextLabel")({
 						Name = "Title",
