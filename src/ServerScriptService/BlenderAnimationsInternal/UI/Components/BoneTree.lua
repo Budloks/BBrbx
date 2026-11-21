@@ -2,7 +2,8 @@
 
 -- BBrbx: folding for the bone lists (Bone toggles, Export bone toggles).
 -- The lists are depth-first with a `depth` per row; a row is hidden when any
--- ancestor is folded. Folded names survive list rebuilds (rig refresh).
+-- ancestor is folded. Branches start folded; folded names survive list
+-- rebuilds (rig refresh).
 
 local Fusion = require(script.Parent.Parent.Parent.Packages.Fusion)
 local Kit = require(script.Parent.Parent.Kit)
@@ -29,6 +30,8 @@ export type Tree = {
 
 function BoneTree.new(getRows: () -> { any }): Tree
 	local collapsed: { [string]: boolean } = {}
+	-- Names seen before: new branches start folded, ones you opened stay open.
+	local seen: { [string]: boolean } = {}
 	local version = Value(0)
 	local rows: { any } = {}
 	local ancestors: { { number } } = {}
@@ -56,6 +59,15 @@ function BoneTree.new(getRows: () -> { any }): Tree
 			end
 			ancestors[i] = table.clone(stack)
 			table.insert(stack, i)
+		end
+		for i, row in ipairs(list) do
+			if not seen[row.name] then
+				seen[row.name] = true
+				local nextRow = list[i + 1]
+				if nextRow and nextRow.depth > row.depth then
+					collapsed[row.name] = true
+				end
+			end
 		end
 	end
 
