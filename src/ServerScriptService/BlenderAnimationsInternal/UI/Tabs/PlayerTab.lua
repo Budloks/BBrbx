@@ -1,6 +1,6 @@
 --!strict
 
--- BBrbx Animate tab, in the order you work:
+-- BBrbx animation cards (placed into tabs by the main script):
 -- From Blender (actions) → Save → Saved animations → From file/clipboard.
 
 local State = require(script.Parent.Parent.Parent.state)
@@ -152,7 +152,7 @@ function PlayerTab.create(services: any)
 		Subtitle = Computed(function()
 			return tostring(#State.savedAnimations:get())
 		end),
-		Collapsed = true,
+		Collapsed = false,
 		LayoutOrder = 3,
 		[Children] = {
 			New("Frame")({
@@ -186,11 +186,12 @@ function PlayerTab.create(services: any)
 		},
 	})
 
+	-- BBrbx: named cards; the main script decides which tab each one lives in.
 	return {
-		AnimationImportControls.createBlenderCard(services, 1),
-		saveCard,
-		savedCard,
-		AnimationImportControls.createLegacyCard(services, 4),
+		fromBlender = AnimationImportControls.createBlenderCard(services, 1),
+		save = saveCard,
+		saved = savedCard,
+		fromFile = AnimationImportControls.createLegacyCard(services, 4),
 	}
 end
 

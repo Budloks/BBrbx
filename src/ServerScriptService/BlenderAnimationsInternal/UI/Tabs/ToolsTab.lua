@@ -32,7 +32,7 @@ local function createAnimationModifiers(services: any, layoutOrder: number)
 	return VerticalCollapsibleSection({
 		Text = "Animation modifiers",
 		Subtitle = "non-destructive",
-		Collapsed = true,
+		Collapsed = false,
 		LayoutOrder = layoutOrder,
 		[Children] = {
 			New("Frame")({
@@ -47,25 +47,13 @@ local function createAnimationModifiers(services: any, layoutOrder: number)
 end
 
 function ToolsTab.create(services: any)
-	local components = {}
-
-	local cameraControls = CameraControls.createCameraControlsUI(services)
-	if cameraControls then
-		table.insert(components, cameraControls)
-	end
-
-	local keyframeNaming = KeyframeNaming.createKeyframeNamingUI(services, 4)
-	if keyframeNaming then
-		table.insert(components, keyframeNaming)
-	end
-
-	table.insert(components, createAnimationModifiers(services, 6))
-
-
-	-- Add the Bone Toggles section
-	table.insert(components, BoneToggles.create(services, 8) :: any)
-
-	return components
+	-- BBrbx: named cards; the main script decides which tab each one lives in.
+	return {
+		camera = CameraControls.createCameraControlsUI(services),
+		markers = KeyframeNaming.createKeyframeNamingUI(services, 4),
+		modifiers = createAnimationModifiers(services, 6),
+		boneToggles = BoneToggles.create(services, 8) :: any,
+	}
 end
 
 return ToolsTab

@@ -285,7 +285,7 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 	local section = VerticalCollapsibleSection({
 		Text = "Bone toggles",
 		Subtitle = "click or drag to mute bones",
-		Collapsed = true,
+		Collapsed = false,
 		Padding = UDim.new(0, 2),
 		LayoutOrder = layoutOrder or 2,
 		Visible = State.activeRigExists,

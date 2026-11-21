@@ -338,7 +338,7 @@ function RiggingTab.create(services: any)
 		end
 	end
 
-	return {
+	local cards = {
 		VerticalCollapsibleSection({
 			Text = "Rig from Blender",
 			Subtitle = "bones you added or moved",
@@ -420,7 +420,7 @@ function RiggingTab.create(services: any)
 		VerticalCollapsibleSection({
 			Text = "Send rig to Blender",
 			Subtitle = ".rbxm export",
-			Collapsed = true,
+			Collapsed = false,
 			LayoutOrder = 1,
 			[Children] = {
 				Kit.PrimaryButton({
@@ -502,7 +502,7 @@ function RiggingTab.create(services: any)
 		VerticalCollapsibleSection({
 			Text = "Weapon or accessory",
 			Subtitle = "export to Blender",
-			Collapsed = true,
+			Collapsed = false,
 			LayoutOrder = 2,
 			[Children] = {
 				createPreviewSlot(rigPreviewValue, rigPreviewName, 1, "Select in Explorer", function()
@@ -590,6 +590,13 @@ function RiggingTab.create(services: any)
 			},
 		}),
 		ExportBoneToggles.create(services, 3),
+	}
+	-- BBrbx: named cards; the main script decides which tab each one lives in.
+	return {
+		rigFromBlender = cards[1],
+		sendRig = cards[2],
+		weapon = cards[3],
+		exportBones = cards[4],
 	}
 end
 

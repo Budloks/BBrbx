@@ -334,7 +334,7 @@ do -- Creates the plugin
 	table.insert(
 		State.connections,
 		importClipboardAction.Triggered:Connect(function()
-			State.activeTab:set("Animate")
+			State.activeTab:set("Import/Export")
 			importAnimationFromClipboard()
 		end)
 	)
@@ -444,7 +444,7 @@ do -- Creates the plugin
 
     -- merge saved tab order with defaults (forward-compatible)
     do
-        local defaults = { "Animate", "Rig", "Tools", "Settings" }
+        local defaults = { "Import/Export", "Play/Upload", "Extras", "Settings" }
         local defaultSet = {}
         for _, name in ipairs(defaults) do defaultSet[name] = true end
 
@@ -533,7 +533,11 @@ do -- Creates the plugin
 				Font = Computed(function()
 					return if isActive:get() then Enum.Font.BuilderSansBold else Enum.Font.BuilderSansMedium
 				end),
-				TextSize = 14,
+				TextSize = 13,
+				-- Width follows the label (Import/Export is long); flex Fill
+				-- shares what is left so short tabs do not steal space.
+				Size = UDim2.new(0, 0, 1, 0),
+				AutomaticSize = Enum.AutomaticSize.X,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextColor3 = Computed(function()
 					local style = if isActive:get() or hovering:get()
@@ -594,10 +598,39 @@ do -- Creates the plugin
 	end
 
 	-- Build tab content once to avoid re-parent churn on tab switches
+	-- BBrbx layout: cards are built once, then placed in the tab where they are used.
+	local animateCards = PlayerTab.create(services)
+	local rigCards = RiggingTab.create(services)
+	local toolCards = ToolsTab.create(services)
+	local function place(list: { any })
+		local placed = {}
+		for _, card in ipairs(list) do
+			if card then
+				table.insert(placed, card)
+				card.LayoutOrder = #placed
+			end
+		end
+		return placed
+	end
 	local tabContent = {
-		Animate = PlayerTab.create(services),
-		Rig = RiggingTab.create(services),
-		Tools = ToolsTab.create(services),
+		["Import/Export"] = place({
+			rigCards.sendRig,
+			animateCards.fromBlender,
+			rigCards.rigFromBlender,
+			animateCards.fromFile,
+			rigCards.exportBones,
+		}),
+		["Play/Upload"] = place({
+			toolCards.camera or false,
+			animateCards.saved,
+			animateCards.save,
+			toolCards.boneToggles,
+		}),
+		Extras = place({
+			rigCards.weapon,
+			toolCards.markers or false,
+			toolCards.modifiers,
+		}),
 		Settings = MoreTab.create(services),
 	}
 
@@ -644,9 +677,9 @@ do -- Creates the plugin
 	end
 
 	local tabFrames = {
-		_AnimateTab = makeTabFrame("Animate", tabContent.Animate),
-		_RigTab = makeTabFrame("Rig", tabContent.Rig),
-		_ToolsTab = makeTabFrame("Tools", tabContent.Tools),
+		_ImportExportTab = makeTabFrame("Import/Export", tabContent["Import/Export"]),
+		_PlayUploadTab = makeTabFrame("Play/Upload", tabContent["Play/Upload"]),
+		_ExtrasTab = makeTabFrame("Extras", tabContent.Extras),
 		_SettingsTab = makeTabFrame("Settings", tabContent.Settings),
 	}
 
@@ -748,9 +781,9 @@ do -- Creates the plugin
 						BackgroundTransparency = 1,
 						AutomaticCanvasSize = Enum.AutomaticSize.Y,
 						[Children] = {
-							_AnimateTab = tabFrames._AnimateTab,
-							_RigTab = tabFrames._RigTab,
-							_ToolsTab = tabFrames._ToolsTab,
+							_ImportExportTab = tabFrames._ImportExportTab,
+							_PlayUploadTab = tabFrames._PlayUploadTab,
+							_ExtrasTab = tabFrames._ExtrasTab,
 							_SettingsTab = tabFrames._SettingsTab,
 						},
 					}),

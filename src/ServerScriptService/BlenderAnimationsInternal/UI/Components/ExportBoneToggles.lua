@@ -161,7 +161,7 @@ function ExportBoneToggles.create(services: any, layoutOrder: number?)
 	local section = VerticalCollapsibleSection({
 		Text = "Export bone toggles",
 		Subtitle = "bones sent to Blender",
-		Collapsed = true,
+		Collapsed = false,
 		Padding = UDim.new(0, 2),
 		LayoutOrder = layoutOrder or 2,
 		Visible = State.activeRigExists,

@@ -8,8 +8,8 @@ local Value = Fusion.Value
 local Computed = Fusion.Computed
 
 local State = {
-    activeTab = Value("Animate"),
-	tabs = Value({ "Animate", "Rig", "Tools", "Settings" }),
+    activeTab = Value("Import/Export"),
+	tabs = Value({ "Import/Export", "Play/Upload", "Extras", "Settings" }),
 	draggedTab = Value(nil),
 	dropIndex = Value(nil),
 	dockSide = Value(Enum.InitialDockState.Left),

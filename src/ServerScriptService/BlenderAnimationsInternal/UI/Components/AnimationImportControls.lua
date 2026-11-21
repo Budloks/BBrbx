@@ -1,6 +1,6 @@
 --!strict
 
--- BBrbx Animate tab: "From Blender" card (connect, pick armature, import the
+-- BBrbx Import/Export tab: "From Blender" card (connect, pick armature, import the
 -- actions you tick - the default - or just the current timeline, live sync) and a collapsed "From file or clipboard" card.
 
 local State = require(script.Parent.Parent.Parent.state)
@@ -308,7 +308,7 @@ function AnimationImportControls.createLegacyCard(services: any, layoutOrder: nu
 	return VerticalCollapsibleSection({
 		Text = "From file or clipboard",
 		Subtitle = "baked in Blender",
-		Collapsed = true,
+		Collapsed = false,
 		LayoutOrder = layoutOrder,
 		Visible = Computed(function()
 			return State.enableFileExport:get() or State.enableClipboardExport:get()

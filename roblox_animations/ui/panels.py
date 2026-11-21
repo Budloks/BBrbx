@@ -3,9 +3,9 @@ BBrbx sidebar UI (View3D > Sidebar > BBrbx).
 
 Layout rules: every field is "label left, value right" (use_property_split),
 one emphasised button per section, and only the sections you use every day
-(Rig, Animation) start open. All file in/out lives in one "Import / Export"
-section, and the rarely touched tools (IK, world space, constraints, face,
-validation, account) sit under "Advanced".
+(Import, Export, Utility) start open, in the order of the work: bring the
+rig in, send animation out, check the rig. The rarely touched tools (IK,
+world space, constraints, face, validation, account) sit under "Advanced".
 """
 
 import math
@@ -138,7 +138,7 @@ class OBJECT_PT_RbxAnimations(_BBrbxPanel, bpy.types.Panel):
             if _target_armature(context) is None:
                 layout.label(text="Pick the armature you animate.", icon="INFO")
         else:
-            layout.label(text="No armature yet. Open Import / Export.", icon="INFO")
+            layout.label(text="No armature yet. Use Import below.", icon="INFO")
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ def _rig_check_lines(context):
 
 
 class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
-    bl_label = "Rig"
+    bl_label = "Utility"
     bl_idname = "BBRBX_PT_rig"
     bl_parent_id = MAIN_ID
 
@@ -175,6 +175,17 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
 
         layout = self.layout
         arm = _target_armature(context)
+        settings = _settings(context)
+
+        # Weld bones (hidden by default)
+        if settings:
+            shown = not settings.rbx_hide_weld_bones
+            layout.operator(
+                "object.rbxanims_toggle_weld_bones",
+                text="Show weld bones",
+                icon="HIDE_OFF" if shown else "HIDE_ON",
+                depress=shown,
+            )
 
         # Rig check: one status line, details only when something is wrong
         lines = _rig_check_lines(context)
@@ -198,15 +209,17 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
                 for kind, text in details[:6]:
                     col.label(text=text, icon="ERROR" if kind == "ERROR" else "INFO")
 
-        settings = _settings(context)
-        if settings:
-            shown = not settings.rbx_hide_weld_bones
-            layout.operator(
-                "object.rbxanims_toggle_weld_bones",
-                text="Show weld bones",
-                icon="HIDE_OFF" if shown else "HIDE_ON",
-                depress=shown,
-            )
+        # Deform scale (only matters for deform rigs or bones added in Blender)
+        has_new_bones = any(
+            not ("transform" in b.bone and "transform1" in b.bone and "nicetransform" in b.bone)
+            for b in arm.pose.bones
+        )
+        force_deform = getattr(settings, "force_deform_bone_serialization", False) if settings else False
+        if settings and (is_deform_bone_rig(arm) or force_deform or has_new_bones):
+            col = _split(layout)
+            col.prop(settings, "rbx_auto_deform_scale", text="Auto deform scale")
+            if not settings.rbx_auto_deform_scale:
+                col.prop(settings, "rbx_deform_rig_scale", text="Unit scale")
 
         # Active bone
         bone = arm.data.bones.active
@@ -319,23 +332,100 @@ class BBRBX_PT_rig_tools(_NeedsArmature, bpy.types.Panel):
 
 
 # ---------------------------------------------------------------------------
-# Animation
+# Import
 # ---------------------------------------------------------------------------
 
 
-class BBRBX_PT_animation(_NeedsArmature, bpy.types.Panel):
-    bl_label = "Animation"
-    bl_idname = "BBRBX_PT_animation"
+class BBRBX_PT_import(_BBrbxPanel, bpy.types.Panel):
+    bl_label = "Import"
+    bl_idname = "BBRBX_PT_import"
     bl_parent_id = MAIN_ID
 
     def draw_header(self, context):
-        self.layout.label(icon="ACTION")
+        self.layout.label(icon="IMPORT")
+
+    def draw(self, context):
+        layout = self.layout
+        objects = context.scene.objects
+        arm = _target_armature(context)
+        has_rig = _has_stamped_rig(objects) or any(
+            "RigMeta" in o and o.name.startswith("__") and "Meta" in o.name for o in objects
+        )
+
+        if not has_rig:
+            layout.label(text="In Studio: Import/Export, Send rig to Blender.", icon="INFO")
+        row = layout.row()
+        row.scale_y = 1.3 if not has_rig else 1.0
+        row.operator("object.rbxanims_import_rbxm", text="Roblox rig (.rbxm / .rbxl)", icon="ARMATURE_DATA")
+
+        col = layout.column(align=True)
+        col.label(text="Rig setup")
+        col.operator("object.rbxanims_genrig", text="Generate / rebuild armature", icon="ARMATURE_DATA")
+        sub = col.column(align=True)
+        sub.enabled = arm is not None
+        sub.operator("object.rbxanims_applytransform", text="Apply object transform", icon="OBJECT_ORIGIN")
+
+        col = layout.column(align=True)
+        col.enabled = arm is not None
+        col.label(text="Animation")
+        col.operator("object.rbxanims_importfbxanimation", text="From .fbx", icon="ACTION")
+        col.operator("object.rbxanims_mapkeyframes", text="Map from active rig", icon="LINKED")
+
+
+class BBRBX_PT_legacy(_BBrbxPanel, bpy.types.Panel):
+    bl_label = "Legacy .obj import"
+    bl_idname = "BBRBX_PT_legacy"
+    bl_parent_id = "BBRBX_PT_import"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        col = self.layout.column(align=True)
+        col.label(text="For rigs exported by old Studio plugins.")
+        col.operator("object.rbxanims_importmodel", text="Import rig (.obj)", icon="FILE_3D")
+
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+
+class BBRBX_PT_export(_BBrbxPanel, bpy.types.Panel):
+    bl_label = "Export"
+    bl_idname = "BBRBX_PT_export"
+    bl_parent_id = MAIN_ID
+
+    def draw_header(self, context):
+        self.layout.label(icon="EXPORT")
 
     def draw(self, context):
         layout = self.layout
         settings = _settings(context)
         arm = _target_armature(context)
+        if arm is None:
+            layout.label(text="Pick the armature you animate.", icon="INFO")
+            return
 
+        # Bake
+        layout.label(text="Bake without the Studio link")
+        if settings:
+            _split(layout).prop(settings, "rbx_full_range_bake", text="Full range")
+        row = layout.row(align=True)
+        row.operator("object.rbxanims_bake", text="To clipboard", icon="COPYDOWN")
+        row.operator("object.rbxanims_bake_file", text="To file", icon="FILE")
+
+        # Skinned meshes
+        layout.separator()
+        layout.label(text="Skinned meshes to Roblox")
+        layout.operator("rbxbb.export_deform", icon="MOD_SKIN")
+        last = context.scene.get("rbx_bb_last_deform_export")
+        if last:
+            _value_row(layout, "Last file", str(last).replace("\\", "/").split("/")[-1])
+        col = layout.column(align=True)
+        col.label(text="Then in Studio: Import 3D, then")
+        col.label(text="Import/Export, Bind imported mesh.")
+
+        # Action settings
+        layout.separator()
         ad = arm.animation_data
         action = ad.action if ad else None
         if action is not None:
@@ -345,86 +435,11 @@ class BBRBX_PT_animation(_NeedsArmature, bpy.types.Panel):
             col.prop(action, "rbx_bb_priority", text="Priority")
             col.prop(action, "rbx_bb_loop", text="Loop")
         else:
-            layout.label(text="No action on this armature.", icon="INFO")
-
-        has_new_bones = any(
-            not ("transform" in b.bone and "transform1" in b.bone and "nicetransform" in b.bone)
-            for b in arm.pose.bones
-        )
-        force_deform = getattr(settings, "force_deform_bone_serialization", False) if settings else False
-        if settings and (is_deform_bone_rig(arm) or force_deform or has_new_bones):
-            col = _split(layout)
-            col.prop(settings, "rbx_auto_deform_scale", text="Auto deform scale")
-            if not settings.rbx_auto_deform_scale:
-                col.prop(settings, "rbx_deform_rig_scale", text="Unit scale")
-
-
-
-class BBRBX_PT_io(_BBrbxPanel, bpy.types.Panel):
-    bl_label = "Import / Export"
-    bl_idname = "BBRBX_PT_io"
-    bl_parent_id = MAIN_ID
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw_header(self, context):
-        self.layout.label(icon="FILE_FOLDER")
-
-    def draw(self, context):
-        layout = self.layout
-        settings = _settings(context)
-        objects = context.scene.objects
-        arm = _target_armature(context)
-        has_rig = _has_stamped_rig(objects) or any(
-            "RigMeta" in o and o.name.startswith("__") and "Meta" in o.name for o in objects
-        )
-
-        # Import
-        box = layout.box()
-        box.label(text="Import", icon="IMPORT")
-        if not has_rig:
-            box.label(text="In Studio: Rig tab, Send rig to Blender.", icon="INFO")
-        row = box.row()
-        row.scale_y = 1.3 if not has_rig else 1.0
-        row.operator("object.rbxanims_import_rbxm", text="Roblox rig (.rbxm / .rbxl)", icon="ARMATURE_DATA")
-        col = box.column(align=True)
-        col.enabled = arm is not None
-        col.operator("object.rbxanims_importfbxanimation", text="Animation from .fbx", icon="ACTION")
-        col.operator("object.rbxanims_mapkeyframes", text="Map from active rig", icon="LINKED")
-
-        # Export
-        box = layout.box()
-        box.label(text="Export", icon="EXPORT")
-        box.label(text="Bake animation without the Studio link")
-        if settings:
-            _split(box).prop(settings, "rbx_full_range_bake", text="Full range")
-        row = box.row(align=True)
-        row.enabled = arm is not None
-        row.operator("object.rbxanims_bake", text="To clipboard", icon="COPYDOWN")
-        row.operator("object.rbxanims_bake_file", text="To file", icon="FILE")
-        box.separator()
-        box.label(text="Skinned meshes to Roblox")
-        row = box.row()
-        row.enabled = arm is not None
-        row.operator("rbxbb.export_deform", icon="MOD_SKIN")
-        last = context.scene.get("rbx_bb_last_deform_export")
-        if last:
-            _value_row(box, "Last file", str(last).replace("\\", "/").split("/")[-1])
-        col = box.column(align=True)
-        col.label(text="Then in Studio: Import 3D, Rig tab,")
-        col.label(text="Bind imported mesh. No skin? Push rig.")
-
-        # Rig setup
-        box = layout.box()
-        box.label(text="Rig setup", icon="TOOL_SETTINGS")
-        col = box.column(align=True)
-        col.operator("object.rbxanims_genrig", text="Generate / rebuild armature", icon="ARMATURE_DATA")
-        sub = col.column(align=True)
-        sub.enabled = arm is not None
-        sub.operator("object.rbxanims_applytransform", text="Apply object transform", icon="OBJECT_ORIGIN")
+            layout.label(text="No action on this armature.", icon="ACTION")
 
 
 # ---------------------------------------------------------------------------
-# Advanced: rig helpers, face, validation, legacy, account, about
+# Advanced: rig helpers, face, validation, account, about
 # ---------------------------------------------------------------------------
 
 
@@ -490,18 +505,6 @@ class BBRBX_PT_validation(_NeedsArmature, bpy.types.Panel):
         row.operator("object.rbxanims_clear_motionpaths", text="", icon="TRASH")
 
 
-class BBRBX_PT_legacy(_BBrbxPanel, bpy.types.Panel):
-    bl_label = "Legacy"
-    bl_idname = "BBRBX_PT_legacy"
-    bl_parent_id = "BBRBX_PT_more"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        col = self.layout.column(align=True)
-        col.label(text="For rigs exported by old Studio plugins.")
-        col.operator("object.rbxanims_importmodel", text="Import rig (.obj)", icon="FILE_3D")
-
-
 class BBRBX_PT_account(_BBrbxPanel, bpy.types.Panel):
     bl_label = "Roblox account"
     bl_idname = "BBRBX_PT_account"
@@ -547,14 +550,14 @@ class BBRBX_PT_about(_BBrbxPanel, bpy.types.Panel):
 
 # Registration order = order in the sidebar (parents before children).
 CHILD_PANELS = (
+    BBRBX_PT_import,
+    BBRBX_PT_legacy,
+    BBRBX_PT_export,
     BBRBX_PT_rig,
-    BBRBX_PT_animation,
-    BBRBX_PT_io,
     BBRBX_PT_more,
     BBRBX_PT_rig_tools,
     BBRBX_PT_face,
     BBRBX_PT_validation,
-    BBRBX_PT_legacy,
     BBRBX_PT_account,
     BBRBX_PT_about,
 )
