@@ -1,7 +1,7 @@
 # pyright: reportAttributeAccessIssue=false, reportOptionalMemberAccess=false
 """
 BB fork: export skinned (deforming) meshes as an FBX that imports into Roblox
-Studio cleanly, ready for the Studio "Bind Imported Mesh" button.
+Studio cleanly, ready for the Studio "Append deform mesh" button.
 
 What it takes care of (each of these broke a manual export at least once):
 * the armature object transform is baked out (armature at the origin), so the

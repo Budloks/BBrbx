@@ -1,6 +1,6 @@
 --!strict
 
--- BB fork: Push Rig — make the Studio rig match the Blender armature.
+-- BB fork: Synchronise — make the Studio rig match the Blender armature.
 --
 -- Blender reports every exported bone with its rest relative to its Roblox
 -- parent (exactly the value of Bone.CFrame, or a Motor6D C0 with C1 = I).
@@ -9,7 +9,7 @@
 -- exports them 1:1 from then on.
 --
 -- Skinned bones are never created or moved here: moving a skinned Bone in
--- Roblox drags its mesh. Those come in with "Export Deform" + "Bind Imported Mesh".
+-- Roblox drags its mesh. Those come in with "Export Deform" + "Append deform mesh".
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
@@ -100,7 +100,7 @@ function RigPushService:pushRig(): PushSummary
 	local created: { [string]: Instance } = {}
 	local applied = {}
 
-	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Push Rig")
+	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Synchronise rig")
 	local okApply, applyErr = pcall(function()
 		for _, ch in ipairs(topoSort(layout.channels or {})) do
 			if not ch.parent then
@@ -138,7 +138,7 @@ function RigPushService:pushRig(): PushSummary
 			end
 
 			if ch.skinned then
-				-- Comes with its mesh through Export Deform + Bind Imported Mesh
+				-- Comes with its mesh through Export Deform + Append deform mesh
 				table.insert(result.skippedSkinned, ch.name)
 				continue
 			end
@@ -196,7 +196,7 @@ function RigPushService:pushRig(): PushSummary
 		)
 	end
 	if not okApply then
-		return summary(false, "Push Rig failed: " .. tostring(applyErr))
+		return summary(false, "Synchronise failed: " .. tostring(applyErr))
 	end
 
 	-- Rebuild the rig so the new channels exist, then let Blender stamp its bones
@@ -232,9 +232,9 @@ function RigPushService:pushRig(): PushSummary
 	if layout.warnings and #layout.warnings > 0 then
 		table.insert(parts, "warnings: " .. table.concat(layout.warnings, "; "))
 	end
-	result.message = "Push Rig: " .. table.concat(parts, ", ")
+	result.message = "Synchronise: " .. table.concat(parts, ", ")
 	for _, f in ipairs(result.failed) do
-		warn("[BBrbx] Push Rig: " .. f)
+		warn("[BBrbx] Synchronise: " .. f)
 	end
 	print("[BBrbx] " .. result.message)
 	return result

@@ -31,7 +31,7 @@ class RBXBB_OT_export_deform(bpy.types.Operator):
     bl_description = (
         "Export the skinned meshes of this armature as an FBX ready for Roblox: "
         "armature at origin, Roblox bone names and axes, only the bones the meshes use. "
-        "Import it in Studio, then press 'Bind Imported Mesh'"
+        "Import it in Studio, then press 'Append deform mesh'"
     )
     bl_options = {"REGISTER"}
 
@@ -63,7 +63,7 @@ class RBXBB_OT_export_deform(bpy.types.Operator):
             msg += f" ({result['unweighted_vertices']} vertices have no weights!)"
             self.report({"WARNING"}, msg)
         else:
-            self.report({"INFO"}, msg + ". In Studio: Import 3D, then 'Bind Imported Mesh'.")
+            self.report({"INFO"}, msg + ". In Studio: Import 3D, then 'Append deform mesh'.")
         context.scene["rbx_bb_last_deform_export"] = result["file"]
         return {"FINISHED"}
 

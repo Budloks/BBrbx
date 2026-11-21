@@ -340,17 +340,17 @@ function RiggingTab.create(services: any)
 
 	local cards = {
 		VerticalCollapsibleSection({
-			Text = "Rig from Blender",
+			Text = "Synchronise Rig",
 			Subtitle = "bones you added or moved",
 			Collapsed = false,
 			LayoutOrder = 0,
 			[Children] = {
 				Kit.Hint({
-					Text = "No skinned meshes: Push rig. Skinned meshes: Export Deform FBX in Blender, Import 3D here, then Bind imported mesh.",
+					Text = "No skinned meshes: Synchronise. Skinned meshes: Export Deform FBX in Blender, Import 3D here, then Append deform mesh.",
 					LayoutOrder = 1,
 				}),
 				Kit.PrimaryButton({
-					Text = "Push rig",
+					Text = "Synchronise",
 					LayoutOrder = 2,
 					Enabled = idleWithRig,
 					Activated = function()
@@ -363,7 +363,7 @@ function RiggingTab.create(services: any)
 					),
 				}),
 				Kit.Button({
-					Text = "Bind imported mesh",
+					Text = "Append deform mesh",
 					LayoutOrder = 3,
 					Enabled = idleWithRig,
 					Activated = function()
@@ -380,7 +380,7 @@ function RiggingTab.create(services: any)
 					LayoutOrder = 5,
 					[Children] = {
 						Kit.Button({
-							Text = "Scan",
+							Text = "Scan for issues",
 							LayoutOrder = 1,
 							Size = UDim2.new(0, 0, 1, 0),
 							Enabled = idle,
@@ -394,7 +394,7 @@ function RiggingTab.create(services: any)
 							),
 						}),
 						Kit.Button({
-							Text = "Fix all",
+							Text = "Fix issues",
 							LayoutOrder = 2,
 							Size = UDim2.new(0, 0, 1, 0),
 							Enabled = idle,
@@ -418,7 +418,7 @@ function RiggingTab.create(services: any)
 			},
 		}),
 		VerticalCollapsibleSection({
-			Text = "Send rig to Blender",
+			Text = "Export Rig",
 			Subtitle = ".rbxm export",
 			Collapsed = false,
 			LayoutOrder = 1,

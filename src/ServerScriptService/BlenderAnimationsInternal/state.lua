@@ -47,7 +47,7 @@ local State = {
 
     animationData = nil :: { Types.KeyframeType }?,
     currentAnimTrack = nil :: Types.AnimationTrackType?,
-    animationName = "KeyframeSequence",
+    animationName = "",
     animationDirty = Value(false),
 
     loadingEnabled = Value(false),

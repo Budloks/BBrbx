@@ -236,7 +236,7 @@ def rig_check(armature):
         if re.search(r"\.\d{3}$", rname):
             problems.append(f"'{rname}' ends in a Blender duplicate suffix; rename it before pushing")
         if rest_contract.rest_drift(b) > 1e-4:
-            info.append(f"'{b.name}' rest was edited in Blender; Push Rig will update it in Studio")
+            info.append(f"'{b.name}' rest was edited in Blender; Synchronise Rig in Studio will update it")
     scale = armature.scale
     if max(scale) - min(scale) > 1e-4:
         problems.append("Armature object scale is not uniform; apply scale first")

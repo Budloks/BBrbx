@@ -1,9 +1,9 @@
 --!strict
 
 -- BBrbx Import/Export tab cards:
---   From Blender        - pick armature, import the actions you tick (or just the
+--   Import Animation    - pick armature, import the actions you tick (or just the
 --                         current timeline), live sync. Import only.
---   Animation to Blender - send the animation playing in Studio to Blender.
+--   Export Animation    - send the animation playing in Studio to Blender.
 --   From file or clipboard.
 -- Connecting is automatic (see the auto-connect loop in the main script); the
 -- refresh icon in the card header reloads armatures and actions.
@@ -104,7 +104,7 @@ function AnimationImportControls.createBlenderCard(services: any, layoutOrder: n
 	end
 
 	return VerticalCollapsibleSection({
-		Text = "From Blender",
+		Text = "Import Animation",
 		Subtitle = Computed(function()
 			if not connected:get() then
 				return "not connected"
@@ -236,7 +236,7 @@ end
 function AnimationImportControls.createSendCard(services: any, layoutOrder: number)
 	local hint = Value("")
 	return VerticalCollapsibleSection({
-		Text = "Animation to Blender",
+		Text = "Export Animation",
 		Subtitle = Computed(function()
 			local saved = State.selectedSavedAnim:get()
 			return if saved then (saved :: any).name else "play an animation first"

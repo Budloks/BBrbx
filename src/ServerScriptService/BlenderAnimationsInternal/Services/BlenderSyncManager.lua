@@ -291,7 +291,7 @@ function BlenderSyncManager:stopLiveSyncing()
 	end
 end
 
--- BB fork: fresh rest data for any Rig object (used after Push Rig / Bind)
+-- BB fork: fresh rest data for any Rig object (used after Synchronise / Bind)
 function BlenderSyncManager:buildRestCalibration(rig: any): any?
 	return buildTargetBoneRestCalibration(rig)
 end

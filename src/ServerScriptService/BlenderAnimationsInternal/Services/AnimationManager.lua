@@ -1644,47 +1644,47 @@ function AnimationManager:uploadAnimation()
 	-- Always apply current state properties (the clone path won't have these)
 	kfs.Loop = State.loopAnimation:get()
 	kfs.Priority = priorityLookup[State.selectedPriority:get()]
-    kfs.Parent = game.Workspace
 
-    -- upload the selected KeyframeSequence
-    SelectionService:Set({ kfs })
-    self.plugin:SaveSelectedToRoblox()
-
-    -- persist the uploaded sequence instead of deleting it
-    -- move it under the active rig's AnimSaves container for user access
-    local animSaves: any = State.activeRigModel:FindFirstChild("AnimSaves")
-    if not animSaves then
-        animSaves = Instance.new("ObjectValue")
-        animSaves.Name = "AnimSaves"
-        animSaves.Parent = State.activeRigModel
-    end
-
-    -- ensure unique name if needed
-    if State.uniqueNames:get() then
-        local existingNames = {}
-        for _, d in ipairs(animSaves:GetDescendants()) do
-            existingNames[d.Name] = true
-        end
-        local baseName = kfs.Name
-        local finalName = baseName
-        if existingNames[baseName] then
-            local i = 1
-            while true do
-                finalName = baseName .. "_" .. tostring(i)
-                if not existingNames[finalName] then
-                    break
-                end
-                i += 1
-            end
-        end
-        kfs.Name = finalName
-    end
-
-    kfs.Parent = animSaves
-
-	if State.rigManager and State.rigManager.updateSavedAnimationsList then
-		State.rigManager:updateSavedAnimationsList()
+	-- BBrbx: upload only. The sequence is a temporary copy (no new entry in
+	-- AnimSaves); it is removed once you select something else after the
+	-- upload dialog, or after ten minutes. Use Save to rig to keep a copy.
+	local holder = game:GetService("ServerStorage"):FindFirstChild("BBrbx_UploadTemp")
+	if not holder then
+		holder = Instance.new("Folder")
+		holder.Name = "BBrbx_UploadTemp"
+		holder.Parent = game:GetService("ServerStorage")
 	end
+	for _, old in ipairs(holder:GetChildren()) do
+		old:Destroy()
+	end
+	kfs.Parent = holder
+
+	SelectionService:Set({ kfs })
+	self.plugin:SaveSelectedToRoblox()
+
+	local cleaned = false
+	local conn: RBXScriptConnection
+	local function cleanup()
+		if cleaned then
+			return
+		end
+		cleaned = true
+		if conn then
+			conn:Disconnect()
+		end
+		if kfs.Parent then
+			kfs:Destroy()
+		end
+		if holder.Parent and #holder:GetChildren() == 0 then
+			holder:Destroy()
+		end
+	end
+	conn = SelectionService.SelectionChanged:Connect(function()
+		if not table.find(SelectionService:Get(), kfs) then
+			cleanup()
+		end
+	end)
+	task.delay(600, cleanup)
 end
 
 function AnimationManager:playSavedAnimation(animation)

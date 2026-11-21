@@ -319,7 +319,7 @@ class BBRBX_PT_import(_BBrbxPanel, bpy.types.Panel):
         )
 
         if not has_rig:
-            layout.label(text="In Studio: Import/Export, Send rig to Blender.", icon="INFO")
+            layout.label(text="In Studio: Import/Export, Export Rig.", icon="INFO")
         row = layout.row()
         row.scale_y = 1.3 if not has_rig else 1.0
         row.operator("object.rbxanims_import_rbxm", text="Roblox rig (.rbxm / .rbxl)", icon="ARMATURE_DATA")
@@ -388,7 +388,7 @@ class BBRBX_PT_export(_BBrbxPanel, bpy.types.Panel):
             _value_row(layout, "Last file", str(last).replace("\\", "/").split("/")[-1])
         col = layout.column(align=True)
         col.label(text="Then in Studio: Import 3D, then")
-        col.label(text="Import/Export, Bind imported mesh.")
+        col.label(text="Synchronise Rig, Append deform mesh.")
 
 
 # ---------------------------------------------------------------------------

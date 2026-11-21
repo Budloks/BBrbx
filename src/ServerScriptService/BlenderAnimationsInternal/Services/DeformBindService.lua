@@ -1,6 +1,6 @@
 --!strict
 
--- BB fork: "Bind Imported Mesh".
+-- BB fork: "Append deform mesh".
 --
 -- After "Export Deform FBX" in Blender and Studio's Import 3D, this turns the
 -- imported model into part of the active rig — the steps that used to be done
@@ -131,7 +131,7 @@ end
 function DeformBindService:bindImportedMesh()
 	local rigModel = State.activeRigModel :: Model?
 	if not rigModel or not State.activeRig then
-		return result(false, "Select the rig first, then press Bind Imported Mesh")
+		return result(false, "Select the rig first, then press Append deform mesh")
 	end
 	local sync = self.blenderSyncManager
 	local connection = sync.blenderConnectionService
@@ -151,7 +151,7 @@ function DeformBindService:bindImportedMesh()
 		end
 	end
 	if next(skinned) == nil then
-		return result(false, "Blender reports no skinned bones for " .. tostring(armature) .. " (nothing to bind; use Push Rig)")
+		return result(false, "Blender reports no skinned bones for " .. tostring(armature) .. " (nothing to bind; use Synchronise)")
 	end
 
 	local importModel, mp = self:_findImport(rigModel, skinned)
@@ -169,7 +169,7 @@ function DeformBindService:bindImportedMesh()
 		return rp and rp.part or nil
 	end
 
-	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Bind Imported Mesh")
+	local recording = ChangeHistoryService:TryBeginRecording("BBrbx: Append deform mesh")
 	local summary = {}
 	local ok, bindErr = pcall(function()
 		-- 1. Scale (compare bone-to-parent distances with the Blender layout)

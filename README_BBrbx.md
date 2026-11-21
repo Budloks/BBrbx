@@ -16,12 +16,12 @@ Porty zostają te same (31337), a stare pliki `.blend` i rigi działają bez zmi
 ## Workflow: edytuję rig w Blenderze → Roblox
 
 **Bez siatek skinned** (dodałeś lub przesunąłeś kości, stawy, bełt, rączkę…):
-- W Studio: zakładka Import/Export → **Push Rig**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
+- W Studio: zakładka Import/Export → **Synchronise**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
 
 **Z siatkami skinned** (łuk, kusza, cokolwiek, co się wygina):
 1. Blender: Sidebar → BBrbx → **Export** → **Export Deform FBX**.
 2. Studio: Home → Import 3D, z domyślnymi ustawieniami.
-3. Studio: Rig → **Bind Imported Mesh**.
+3. Studio: Import/Export → Synchronise Rig → **Append deform mesh**.
 
 Bind sam poprawia skalę, usuwa zagnieżdżony AnimationController, stawia siatkę na spoczynku z Blendera, przepina kości pod rig, zachowuje teksturę i odkłada zastąpione części do ServerStorage.
 

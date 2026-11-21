@@ -339,7 +339,7 @@ function RigTabs._resetRigState(state: any, rigInst: Instance?)
 	state.exportBoneWeights:set({})
 	state.activeWarnings:set({})
 	state.selectedPriority:set("Action")
-	state.animationName = "KeyframeSequence"
+	state.animationName = ""
 	state.stopSpeed:set(2)
 	state.setRigOrigin:set(true)
 	state.scaleFactor:set(1)

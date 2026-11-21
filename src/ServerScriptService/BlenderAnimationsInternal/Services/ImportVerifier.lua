@@ -124,7 +124,7 @@ function ImportVerifier.verify(rig: any, check: any): { Issue }
 	-- Structural problems first (they explain everything below them)
 	for name in pairs(check.rest) do
 		if not (rig.bones and rig.bones[name]) then
-			add(name, "is not in the Studio rig — press Push Rig (or Bind Imported Mesh for skinned bones)")
+			add(name, "is not in the Studio rig — press Synchronise (or Append deform mesh for skinned bones)")
 		else
 			local owner = skippedBy(rig, name)
 			if owner then
@@ -160,7 +160,7 @@ function ImportVerifier.verify(rig: any, check: any): { Issue }
 			add(
 				name,
 				string.format(
-					"rest differs from Blender by %.3f studs / %.1f° — Push Rig (joints) or re-export + Bind Imported Mesh (skinned)",
+					"rest differs from Blender by %.3f studs / %.1f° — Synchronise (joints) or re-export + Append deform mesh (skinned)",
 					(studio.Position - blender.Position).Magnitude,
 					math.deg(angleBetween(studio, blender))
 				)
@@ -189,7 +189,7 @@ function ImportVerifier.verify(rig: any, check: any): { Issue }
 			if not (p and bad[p]) then
 				local hint
 				if math.abs(dAng - math.pi) < math.rad(10) then
-					hint = "turned ~180° (bone axes differ; re-export, or press Push Rig to re-stamp)"
+					hint = "turned ~180° (bone axes differ; re-export, or press Synchronise to re-stamp)"
 				elseif dAng > ANGLE_TOL then
 					hint = string.format("off by %.1f° / %.3f studs at frame %s", math.deg(dAng), dPos, tostring(frame.frame))
 				else

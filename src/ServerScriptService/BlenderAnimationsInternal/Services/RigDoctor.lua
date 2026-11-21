@@ -111,7 +111,7 @@ function RigDoctor:scanRig(rig: Model): { Finding }
 				end
 			end
 			if hasJoint then
-				add(string.format("part '%s' and a Bone share the name; Bind Imported Mesh backs such parts up", d.Name))
+				add(string.format("part '%s' and a Bone share the name; Append deform mesh backs such parts up", d.Name))
 			end
 		end
 	end

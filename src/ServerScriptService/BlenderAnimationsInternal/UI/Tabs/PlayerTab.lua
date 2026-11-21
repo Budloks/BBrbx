@@ -153,6 +153,15 @@ function PlayerTab.create(services: any)
 		end
 	end
 
+	-- Name follows the animation that is playing (a saved one), empty otherwise.
+	local nameText = Value(State.animationName or "")
+	Fusion.Observer(State.selectedSavedAnim):onChange(function()
+		local saved = State.selectedSavedAnim:get()
+		local name = if saved then tostring((saved :: any).name) else ""
+		nameText:set(name)
+		State.animationName = name
+	end)
+
 	local saveCard = VerticalCollapsibleSection({
 		Text = "Save / Upload",
 		Collapsed = false,
@@ -160,11 +169,12 @@ function PlayerTab.create(services: any)
 		[Children] = {
 			Kit.FieldLabel({ Text = "Name", LayoutOrder = 1 }),
 			TextInput({
-				PlaceholderText = "KeyframeSequence",
-				Text = State.animationName,
+				PlaceholderText = "Animation name",
+				Text = nameText,
 				LayoutOrder = 2,
 				[OnChange("Text")] = function(newText)
-					State.animationName = if newText == "" then "KeyframeSequence" else newText
+					nameText:set(newText)
+					State.animationName = newText
 				end,
 			}),
 			Kit.FieldLabel({ Text = "Priority", LayoutOrder = 3 }),
