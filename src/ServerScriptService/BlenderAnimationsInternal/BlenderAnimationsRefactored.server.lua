@@ -332,7 +332,7 @@ do -- Creates the plugin
 	table.insert(
 		State.connections,
 		importClipboardAction.Triggered:Connect(function()
-			State.activeTab:set("Player")
+			State.activeTab:set("Animate")
 			importAnimationFromClipboard()
 		end)
 	)
@@ -364,9 +364,9 @@ do -- Creates the plugin
 		local testColor = themeProvider:GetColor(Enum.StudioStyleGuideColor.MainBackground)
 		-- Dark theme has darker background colors
 		if testColor and testColor.R and testColor.G and testColor.B and testColor.R < 0.2 and testColor.G < 0.2 and testColor.B < 0.2 then
-			State.toolbarButtonImage:set("rbxassetid://116041192227009") -- dark theme
+			State.toolbarButtonImage:set("rbxasset://textures/advancedMove_joint.png") -- BBrbx (built-in Studio icon)
 		else
-			State.toolbarButtonImage:set("rbxassetid://92189642379919") -- light theme
+			State.toolbarButtonImage:set("rbxasset://textures/advancedMove_joint.png")
 		end
 	end
 	
@@ -377,8 +377,8 @@ do -- Creates the plugin
 		Plugin = Plugin,
 		Toolbar = pluginToolbar,
 		ClickableWhenViewportHidden = true,
-		Name = "Open",
-		ToolTip = "Open Blender Animations Plugin",
+		Name = "BBrbx",
+		ToolTip = "Open BBrbx (Blender ⇄ Roblox rigs and animations)",
 		Image = State.toolbarButtonImage:get(),
 
 		[OnEvent("Click")] = function()
@@ -442,7 +442,7 @@ do -- Creates the plugin
 
     -- merge saved tab order with defaults (forward-compatible)
     do
-        local defaults = { "Player", "Rigging", "Tools", "More" }
+        local defaults = { "Animate", "Rig", "Tools", "Settings" }
         local defaultSet = {}
         for _, name in ipairs(defaults) do defaultSet[name] = true end
 
@@ -668,10 +668,10 @@ do -- Creates the plugin
 
 	-- Build tab content once to avoid re-parent churn on tab switches
 	local tabContent = {
-		Player = PlayerTab.create(services),
-		Rigging = RiggingTab.create(services),
+		Animate = PlayerTab.create(services),
+		Rig = RiggingTab.create(services),
 		Tools = ToolsTab.create(services),
-		More = MoreTab.create(services),
+		Settings = MoreTab.create(services),
 	}
 
 	-- Build rig tabs bar once
@@ -717,10 +717,10 @@ do -- Creates the plugin
 	end
 
 	local tabFrames = {
-		_PlayerTab = makeTabFrame("Player", tabContent.Player),
-		_RiggingTab = makeTabFrame("Rigging", tabContent.Rigging),
+		_AnimateTab = makeTabFrame("Animate", tabContent.Animate),
+		_RigTab = makeTabFrame("Rig", tabContent.Rig),
 		_ToolsTab = makeTabFrame("Tools", tabContent.Tools),
-		_MoreTab = makeTabFrame("More", tabContent.More),
+		_SettingsTab = makeTabFrame("Settings", tabContent.Settings),
 	}
 
 	local function handleMainWidgetEnabledChanged(isEnabled: boolean)

@@ -41,7 +41,7 @@ function PlayerTab.create(services: any)
 		AnimationImportControls.create(services, 1),
 		BulkActions.create(services, 2),
 		VerticalCollapsibleSection({
-			Text = "Save/Upload",
+			Text = "💾 Save & Upload",
 			Collapsed = false,
 			LayoutOrder = 3,
 			[Children] = {
@@ -398,7 +398,7 @@ function PlayerTab.create(services: any)
 				}),
 			},
 		}),
-		BoneToggles.create(services, 3),
+		BoneToggles.create(services, 4),
 	}
 end
 

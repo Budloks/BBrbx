@@ -441,7 +441,8 @@ local function createBlenderSyncSection(services: any, layoutOrder: number, sele
 end
 
 function AnimationImportControls.create(services: any, layoutOrder: number?)
-	local selectedImportMode = Value("Legacy Import")
+	-- BBrbx: Blender Sync is the main workflow, so it opens first
+	local selectedImportMode = Value("Blender Sync")
 
 	local function createImportTabButton(mode: string, order: number)
 		local isHovering = Value(false)
@@ -599,8 +600,8 @@ function AnimationImportControls.create(services: any, layoutOrder: number?)
 						SortOrder = Enum.SortOrder.LayoutOrder,
 						Padding = UDim.new(0, 6),
 					}),
-					createImportTabButton("Legacy Import", 1),
-					createImportTabButton("Blender Sync", 2),
+					createImportTabButton("Blender Sync", 1),
+					createImportTabButton("Legacy Import", 2),
 				},
 			}),
 			createLegacyImportSection(services, 2, selectedImportMode),

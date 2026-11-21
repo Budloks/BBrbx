@@ -153,7 +153,7 @@ function ExportBoneToggles.create(services: any, layoutOrder: number?)
 	end
 
 	local section = VerticalCollapsibleSection({
-		Text = "Export Rig Bone Toggles",
+		Text = "🦴 Export Bone Toggles",
 		Collapsed = false,
 		LayoutOrder = layoutOrder or 2,
 		Visible = State.activeRigExists,

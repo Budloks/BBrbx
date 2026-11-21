@@ -63,7 +63,7 @@ local function createAnimationModifiers(services: any, layoutOrder: number): Fra
 				BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.HeaderSection),
 				BackgroundTransparency = 0,
 				Font = themeProvider:GetFont("Bold"),
-				Text = "Animation Modifiers",
+				Text = "🧩 Animation Modifiers",
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.BrightText),

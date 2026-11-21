@@ -362,7 +362,7 @@ function RiggingTab.create(services: any)
 
 	return {
 		VerticalCollapsibleSection({
-			Text = "Blender → Studio Rig (BBrbx)",
+			Text = "🔗 Blender → Studio",
 			Collapsed = false,
 			LayoutOrder = 0,
 			[Children] = {
@@ -459,8 +459,8 @@ function RiggingTab.create(services: any)
 			},
 		}),
 		VerticalCollapsibleSection({
-			Text = "Export Rig",
-			Collapsed = false,
+			Text = "📤 Studio → Blender (export rig)",
+			Collapsed = true,
 			LayoutOrder = 1,
 			[Children] = {
 				Button({
@@ -593,7 +593,7 @@ function RiggingTab.create(services: any)
 			},
 		}),
 		VerticalCollapsibleSection({
-			Text = "Export Weapon / Accessory",
+			Text = "🗡 Export Weapon / Accessory",
 			Collapsed = true,
 			LayoutOrder = 2,
 			[Children] = {

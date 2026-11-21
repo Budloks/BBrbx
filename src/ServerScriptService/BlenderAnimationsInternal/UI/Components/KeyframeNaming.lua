@@ -53,7 +53,7 @@ end
 
 function KeyframeNaming.createKeyframeNamingUI(services: any, layoutOrder: number?)
 	return VerticalCollapsibleSection({
-		Text = "Keyframe Naming / Markers / Events",
+		Text = "🏷 Markers & Keyframe Names",
 		Collapsed = false,
 		LayoutOrder = layoutOrder or 14,
 		[Children] = {

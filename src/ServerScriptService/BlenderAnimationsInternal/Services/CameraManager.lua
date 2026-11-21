@@ -146,7 +146,7 @@ function CameraManager:attachCameraByName(name: string?)
 	if target then
 		self:attachCameraToPart(target)
 	else
-		warn("[RBXMonkey] Camera: no part or bone named '" .. tostring(name) .. "' in the active rig")
+		warn("[BBrbx] Camera: no part or bone named '" .. tostring(name) .. "' in the active rig")
 	end
 end
 

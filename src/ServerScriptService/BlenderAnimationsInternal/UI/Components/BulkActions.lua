@@ -133,7 +133,7 @@ function BulkActions.create(services: any, layoutOrder: number)
 	end)
 
 	return VerticalCollapsibleSection({
-		Text = "📦 Bulk Actions (BBrbx)",
+		Text = "📦 Bulk Actions",
 		Collapsed = true,
 		LayoutOrder = layoutOrder,
 		[Children] = {

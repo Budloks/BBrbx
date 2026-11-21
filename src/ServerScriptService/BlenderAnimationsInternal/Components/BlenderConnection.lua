@@ -321,7 +321,7 @@ function BlenderConnection:BBRequest(
 		})
 	end)
 	if not ok or not response then
-		return false, nil, "Can't reach Blender on port " .. tostring(port) .. " (is the RBXMonkey server running?)"
+		return false, nil, "Can't reach Blender on port " .. tostring(port) .. " (is BBrbx running in Blender?)"
 	end
 	if not response.Success then
 		local message = response.StatusMessage

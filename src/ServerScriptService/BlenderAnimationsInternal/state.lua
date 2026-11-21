@@ -8,8 +8,8 @@ local Value = Fusion.Value
 local Computed = Fusion.Computed
 
 local State = {
-    activeTab = Value("Player"),
-	tabs = Value({ "Player", "Rigging", "Tools", "More" }),
+    activeTab = Value("Animate"),
+	tabs = Value({ "Animate", "Rig", "Tools", "Settings" }),
 	draggedTab = Value(nil),
 	dropIndex = Value(nil),
 	dockSide = Value(Enum.InitialDockState.Left),
@@ -131,7 +131,7 @@ local State = {
     currentAnimationData = Value(nil :: any?),
     
     -- Toolbar button image
-    toolbarButtonImage = Value("rbxassetid://116041192227009"),
+    toolbarButtonImage = Value("rbxasset://textures/advancedMove_joint.png"),
     
     -- Help widget
     helpWidgetEnabled = Value(false),
