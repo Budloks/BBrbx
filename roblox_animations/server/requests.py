@@ -441,6 +441,87 @@ def execute_in_main_thread(task_id, armature_name, target_bone_rest=None, live_p
         pending_responses[task_id] = (False, f"Error during export: {str(e)}")
 
 
+def _eval_pose(ao):
+    """Re-evaluate the armature pose (NLA muted, it would write over the import)."""
+    ad = ao.animation_data
+    nla_was = bool(ad and ad.use_nla)
+    if nla_was:
+        ad.use_nla = False
+    bpy.context.view_layer.update()
+    if nla_was:
+        ad.use_nla = True
+
+
+# Constraints that move a bone by a helper's motion on top of its own pose, so
+# the pose before them can be solved. IK, tracking and limits replace or clamp
+# the bone's own rotation instead; those bones keep the plain import.
+_SOLVABLE_CONSTRAINTS = {"CHILD_OF", "COPY_LOCATION", "COPY_ROTATION", "COPY_TRANSFORMS", "TRANSFORM", "ARMATURE"}
+
+
+def _has_active_constraints(pose_bone, ik_bones=()):
+    active = [
+        c for c in pose_bone.constraints
+        if not getattr(c, "mute", False) and getattr(c, "enabled", True) and c.influence > 0.0
+    ]
+    return (
+        bool(active)
+        and pose_bone.name not in ik_bones
+        and all(c.type in _SOLVABLE_CONSTRAINTS for c in active)
+    )
+
+
+def _matrix_error(a, b):
+    return max(abs(a[r][c] - b[r][c]) for r in range(4) for c in range(4))
+
+
+def _settle_constrained(ao, names, targets, pre_set, ik_bones=()):
+    """Make constrained bones END where Studio has them, after their constraints.
+
+    Studio sends the final pose. A bone still driven by a constraint in Blender
+    (Child Of / Copy Location from a helper...) would get the helper's motion a
+    second time on top of it. Most constraints put the bone at M @ pre (from
+    the parent side) or pre @ M (in the bone's own axes), so solve the pose
+    before the constraint both ways and keep whichever lands closer. A fix
+    that does not help (IK and other overriding constraints) is not kept.
+    Returns the bones whose pose changed.
+    """
+    _eval_pose(ao)
+    changed = []
+    for name in names:
+        if name not in targets:
+            continue
+        pb = ao.pose.bones.get(name)
+        if pb is None or not _has_active_constraints(pb, ik_bones):
+            continue
+        want = targets[name]
+        pre = pre_set.get(name, want)
+        actual = pb.matrix.copy()
+        best_err, best = _matrix_error(actual, want), pre
+        if best_err < 1e-5:
+            continue
+        try:
+            candidates = (
+                (actual @ pre.inverted()).inverted() @ want,  # constraint acts from the parent side
+                want @ (pre.inverted() @ actual).inverted(),  # constraint acts in the bone's own axes
+            )
+        except ValueError:
+            continue
+        for cand in candidates:
+            pb.matrix = cand
+            _eval_pose(ao)
+            err = _matrix_error(pb.matrix, want)
+            if err < best_err - 1e-7:
+                best_err, best = err, cand
+            if best_err < 1e-5:
+                break
+        pb.matrix = best
+        pre_set[name] = best
+        _eval_pose(ao)
+        if best is not pre:
+            changed.append(name)
+    return changed
+
+
 def execute_import_animation(task_id, animation_data, target_armature=None):
     """Execute the animation import in the main thread with IK preservation."""
     try:
@@ -589,6 +670,21 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                 # parent's motion was applied twice on Studio -> Blender.
                 # Parents come first, so this is one update per hierarchy level.
                 pending_update = set()
+                targets = {}
+                pre_set = {}
+                from ..animation.serialization import get_ik_affected_bones
+
+                ik_bones = get_ik_affected_bones(ao)
+
+                def record(bone_names):
+                    for name in bone_names:
+                        if name in all_bone_data and frame in all_bone_data[name]:
+                            pb_ = ao.pose.bones[name]
+                            all_bone_data[name][frame].update(
+                                location=pb_.location.copy(),
+                                rotation_quaternion=pb_.rotation_quaternion.copy(),
+                                scale=pb_.scale.copy(),
+                            )
 
                 # Simplified single-pass processing loop.
                 # By iterating through bones sorted by hierarchy (parents first), we ensure
@@ -601,14 +697,7 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                     if not pose_data:
                         continue
                     if pending_update and any(p.name in pending_update for p in pose_bone.parent_recursive):
-                        # NLA strips would write over the pose set so far
-                        ad = ao.animation_data
-                        nla_was = bool(ad and ad.use_nla)
-                        if nla_was:
-                            ad.use_nla = False
-                        bpy.context.view_layer.update()
-                        if nla_was:
-                            ad.use_nla = True
+                        record(_settle_constrained(ao, pending_update, targets, pre_set, ik_bones))
                         pending_update.clear()
                     pending_update.add(bone_name)
 
@@ -743,6 +832,8 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
 
                         # --- Apply Motor6D armature-space target ---
                         pose_bone.matrix = final_matrix
+                        targets[bone_name] = final_matrix.copy()
+                        pre_set[bone_name] = final_matrix.copy()
 
                     if bone_name in all_bone_data:
                         all_bone_data[bone_name][frame] = {
@@ -752,6 +843,10 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                             "easingStyle": easing_style,
                             "easingDirection": easing_direction,
                         }
+
+                # the last level of this frame
+                if pending_update and any(n in targets and _has_active_constraints(ao.pose.bones[n], ik_bones) for n in pending_update):
+                    record(_settle_constrained(ao, pending_update, targets, pre_set, ik_bones))
 
             for bone_name, frame_data in all_bone_data.items():
                 sorted_frames = sorted(frame_data.keys())
