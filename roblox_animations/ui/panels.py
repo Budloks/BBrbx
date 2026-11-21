@@ -259,8 +259,6 @@ class BBRBX_PT_rig(_NeedsArmature, bpy.types.Panel):
         else:
             state = "frame from Studio"
         _value_row(box, "Status", state)
-        if bone.children:
-            box.operator("rbxbb.scale_branch", text="Scale with children", icon="FULLSCREEN_ENTER")
 
         pb = arm.pose.bones.get(bone.name)
         if pb is not None:

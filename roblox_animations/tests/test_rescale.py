@@ -110,3 +110,82 @@ class TestScaleBranch(unittest.TestCase):
         self.assertEqual(rescale.pending(self.rig), [])
         self.assertNotIn(rescale.BONE_PENDING_PROP, mag)
         self.assertNotIn(rescale.PENDING_PROP, self.rig)
+
+
+class TestScaleFromAnimation(unittest.TestCase):
+    """Akimbo: one pistol keyed to 1.2x, the other held at 2x; Synchronise makes both real."""
+
+    def setUp(self):
+        if bpy.context.object and bpy.context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="SELECT")
+        bpy.ops.object.delete(use_global=False)
+        for action in list(bpy.data.actions):
+            bpy.data.actions.remove(action)
+        bpy.ops.object.armature_add(enter_editmode=True)
+        rig = bpy.context.object
+        rig.name = "AkimboRig"
+        eb = rig.data.edit_bones
+        eb[0].name = "Root"
+        for gun, x in (("GunA", 1.0), ("GunB", -1.0)):
+            g = eb.new(gun)
+            g.head, g.tail, g.parent = (x, 0, 1), (x, 0.5, 1), eb["Root"]
+            s = eb.new(gun + "_Slide")
+            s.head, s.tail, s.parent = (x, 0.3, 1.2), (x, 0.6, 1.2), g
+        bpy.ops.object.mode_set(mode="OBJECT")
+        for b in rig.data.bones:
+            rest_contract.stamp_from_blender_rest(b, "Motor6D")
+        scene = bpy.context.scene
+        scene.frame_start, scene.frame_end = 1, 11
+        pb = rig.pose.bones
+        for frame, y in ((1, 0.0), (11, -0.2)):
+            for gun in ("GunA", "GunB"):
+                pb[gun + "_Slide"].location = (0, y, 0)
+                pb[gun + "_Slide"].keyframe_insert("location", frame=frame)
+        # GunA: the scale was keyed (someone animated it up to 1.2)
+        for frame, s in ((1, 1.0), (6, 1.2), (11, 1.1)):
+            pb["GunA"].scale = (s, s, s)
+            pb["GunA"].keyframe_insert("scale", frame=frame)
+        # GunB: just set to 2x, not keyed
+        pb["GunB"].scale = (2.0, 2.0, 2.0)
+        self.rig = rig
+
+    def slide(self):
+        out = {}
+        for row in serialize(self.rig)["kfs"]:
+            for name in ("GunA_Slide", "GunB_Slide", "GunA", "GunB"):
+                if name in row["kf"]:
+                    out[(round(row["t"], 4), name)] = row["kf"][name][0][:3]
+        return out
+
+    def test_each_gun_gets_its_biggest_scale(self):
+        self.assertEqual(
+            {k: round(v, 4) for k, v in rescale.scale_from_poses(self.rig).items()},
+            {"GunA": 1.2, "GunB": 2.0},
+        )
+        before = self.slide()
+        done = rescale.apply_pose_scale(self.rig)
+        self.assertEqual({d["bone"]: d["factor"] for d in done}, {"GunA": 1.2, "GunB": 2.0})
+        after = self.slide()
+        for (t, name), pos in before.items():
+            k = {"GunA_Slide": 1.2, "GunB_Slide": 2.0}.get(name, 1.0)
+            if (t, name) not in after:
+                self.assertNotIn("Slide", name)  # a gun keyed only by scale has no moves left
+                continue
+            for a, b in zip(pos, after[(t, name)]):
+                self.assertAlmostEqual(b, a * k, places=4, msg=(name, t))
+        # the scale is now in the rig: no scale keys or pose scale left, nothing more to do
+        self.assertEqual(tuple(self.rig.pose.bones["GunB"].scale), (1.0, 1.0, 1.0))
+        action = self.rig.animation_data.action
+        self.assertFalse([c for c in rescale._all_fcurves(action) if c.data_path.endswith(".scale")])
+        self.assertEqual(rescale.scale_from_poses(self.rig), {})
+        layout = rest_contract.rig_layout(self.rig)
+        self.assertEqual(sorted(e["root"] for e in layout["rescale"]), ["GunA", "GunB"])
+
+    def test_hide_trick_is_left_alone(self):
+        pb = self.rig.pose.bones["GunB"]
+        pb.scale = (1.0, 1.0, 1.0)
+        for frame, s in ((1, 1.0), (5, 0.0), (9, 1.0)):
+            pb.scale = (s, s, s)
+            pb.keyframe_insert("scale", frame=frame)
+        self.assertNotIn("GunB", rescale.scale_from_poses(self.rig))

@@ -312,7 +312,16 @@ def handle(handler, method):
         elif method == "GET" and path == "/bb/rig_layout":
             from ..rig import rest_contract
 
-            _send(handler, 200, rest_contract.rig_layout(resolve_armature(query.get("armature"))))
+            from ..rig.rescale import apply_pose_scale
+
+            armature = resolve_armature(query.get("armature"))
+            if armature.mode == "EDIT":
+                bpy.ops.object.mode_set(mode="OBJECT")
+            # bone scale in the animation = parts of the wrong size: make it real first
+            scaled = apply_pose_scale(armature)
+            layout = rest_contract.rig_layout(armature)
+            layout["scaled_in_blender"] = scaled
+            _send(handler, 200, layout)
         elif method == "POST" and path == "/bb/rig_applied":
             from ..rig import rest_contract
 

@@ -7,9 +7,12 @@ riding on those bones and the location keys of those bones in every action of
 the rig. The branch root keeps its own keys, so the weapon stays where the
 animation puts it in the hand.
 
-The Roblox stamps are scaled the same way, so exports stay 1:1. The armature
-remembers the change until the next Synchronise, which scales the parts,
-meshes and joints in Studio to match (see ``pending``/``acknowledge``).
+You do not call it by hand: scale a Roblox joint bone in the animation
+(TAC50 x1.2, a second pistol x2) and Synchronise picks the biggest value up
+(``apply_pose_scale``), makes the size real here and in Studio, and drops the
+scale keys. The Roblox stamps are scaled the same way, so exports stay 1:1;
+the armature remembers the change until Studio has applied it
+(see ``pending``/``acknowledge``).
 """
 
 import json
@@ -342,3 +345,71 @@ def scale_branch(
         "helpers": helpers,
         "outside": outside,
     }
+
+
+# ---------------------------------------------------------------------------
+# Bone scale from the animation (Synchronise)
+# ---------------------------------------------------------------------------
+
+_SCALE_EPS = 1e-4
+
+
+def _scale_curves(action, bone_name: str):
+    """(container, fcurve) for every scale curve of the bone in an action."""
+    path = f'pose.bones["{bone_name}"].scale'
+    found = []
+    for layer in getattr(action, "layers", []) or []:
+        for strip in getattr(layer, "strips", []) or []:
+            for bag in getattr(strip, "channelbags", []) or []:
+                found.extend((bag, c) for c in bag.fcurves if c.data_path == path)
+    if not found and getattr(action, "fcurves", None) is not None:
+        found = [(action, c) for c in action.fcurves if c.data_path == path]
+    return found
+
+
+def scale_from_poses(ao) -> Optional[Dict[str, float]]:
+    """Bone scale Roblox cannot animate, read from the pose and every action.
+
+    A Roblox joint bone scaled in Blender (static or keyed) means "this part is
+    the wrong size": the biggest value wins (or the smallest when it is only
+    ever shrunk). A bone that never leaves 1, or one that goes to 0 and back
+    (hide tricks), is left alone.
+    """
+    actions = rig_actions(ao)
+    out: Dict[str, float] = {}
+    for pb in ao.pose.bones:
+        if not rest_contract.is_stamped(pb.bone):
+            continue
+        values = list(pb.scale)
+        for action in actions:
+            for _bag, curve in _scale_curves(action, pb.name):
+                values.extend(kp.co.y for kp in curve.keyframe_points)
+        hi, lo = max(values), min(values)
+        if hi > 1 + _SCALE_EPS:
+            out[pb.name] = hi
+        elif lo < 1 - _SCALE_EPS and lo > 0.01:
+            out[pb.name] = lo
+    return out
+
+
+def apply_pose_scale(ao) -> List[Dict[str, Any]]:
+    """Turn bone scale into real size (rest, meshes, children's moves) for Synchronise.
+
+    Outer bones go first, so a magazine scaled inside a scaled gun ends up at
+    both sizes multiplied. The scale keys are removed afterwards (Roblox has no
+    scale channel; the size now lives in the rig).
+    """
+    wanted = scale_from_poses(ao)
+    if not wanted:
+        return []
+    order = sorted(wanted, key=lambda n: len(ao.data.bones[n].parent_recursive))
+    done = []
+    for name in order:
+        factor = wanted[name]
+        for action in rig_actions(ao):
+            for container, curve in _scale_curves(action, name):
+                container.fcurves.remove(curve)
+        ao.pose.bones[name].scale = (1.0, 1.0, 1.0)
+        result = scale_branch(ao, name, factor)
+        done.append({"bone": name, "factor": round(factor, 6), **{k: result[k] for k in ("bones", "meshes", "keys")}})
+    return done
