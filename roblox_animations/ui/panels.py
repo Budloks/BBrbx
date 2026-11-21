@@ -4,8 +4,8 @@ BBrbx sidebar UI (View3D > Sidebar > BBrbx).
 Layout rules: every field is "label left, value right" (use_property_split),
 one emphasised button per section, and only the sections you use every day
 (Import, Export, Utility) start open, in the order of the work: bring the
-rig in, send animation out, check the rig. The rarely touched tools (IK,
-world space, constraints, face, validation, account) sit under "Advanced".
+rig in, send animation out, check the rig. The rarely touched tools
+(constraints, center of mass, face, validation, account) sit under "Advanced".
 """
 
 import math
@@ -274,44 +274,11 @@ class BBRBX_PT_rig_tools(_NeedsArmature, bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        arm = _target_armature(context)
 
         layout.label(text="Parts and constraints")
         col = layout.column(align=True)
         col.operator("object.rbxanims_autoconstraint", text="Constrain matching parts", icon="CONSTRAINT_BONE")
         col.operator("object.rbxanims_manualconstraint", text="Manual constraint editor", icon="CONSTRAINT")
-
-        # IK
-        has_ik = False
-        selected_ik_target = None
-        if arm.mode == "POSE":
-            from ..rig.ik import has_ik_constraint
-            from ..core.utils import pose_bone_selected
-
-            for b in arm.pose.bones:
-                if pose_bone_selected(b):
-                    if has_ik_constraint(arm, b):
-                        has_ik = True
-                    if b.name.endswith("-IKTarget") and "IK_FK" in b:
-                        selected_ik_target = b
-        layout.separator()
-        layout.label(text="IK (generated chains)")
-        row = layout.row(align=True)
-        row.operator("object.rbxanims_modifyik" if has_ik else "object.rbxanims_genik", text="Modify" if has_ik else "Generate")
-        row.operator("object.rbxanims_removeik", text="Remove")
-        if selected_ik_target:
-            layout.prop(selected_ik_target, '["IK_FK"]', text="IK / FK", slider=True)
-            row = layout.row(align=True)
-            row.operator("object.rbxanims_set_ikfk", text="IK").value = 1.0
-            row.operator("object.rbxanims_set_ikfk", text="FK").value = 0.0
-
-        # World space
-        layout.separator()
-        ws_count = sum(1 for b in arm.data.bones if b.get("worldspace_bone"))
-        layout.label(text=f"World-space bones ({ws_count})" if ws_count else "World-space bones")
-        row = layout.row(align=True)
-        row.operator("object.rbxanims_worldspace_unparent", text="Unparent")
-        row.operator("object.rbxanims_worldspace_reparent", text="Reparent")
 
         # Center of mass
         try:

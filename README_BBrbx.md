@@ -3,7 +3,7 @@
 Blender ⇄ Roblox Studio: rigi i animacje. Swobodna edycja riga w Blenderze, wbudowane Bulk Actions, automatyczna weryfikacja importu i poprawki błędów. Zastępuje oficjalny plugin (te same porty).
 
 **Gdzie co jest:**
-- Blender: View3D → Sidebar (N) → zakładka **BBrbx**: status połączenia i armatura na górze, pod spodem sekcje Import (rig .rbxm, rig setup, animacja z .fbx, legacy .obj), Export (bake, Export Deform FBX, ustawienia akcji), Utility (weld bones, Rig check, deform scale, aktywna kość) i Advanced (IK, world space, constrainty, face controls, walidacja UGC, konto, About).
+- Blender: View3D → Sidebar (N) → zakładka **BBrbx**: status połączenia i armatura na górze, pod spodem sekcje Import (rig .rbxm, rig setup, animacja z .fbx, legacy .obj), Export (bake, Export Deform FBX, ustawienia akcji), Utility (weld bones, Rig check, deform scale, aktywna kość) i Advanced (constrainty, środek masy, face controls, walidacja UGC, konto, About).
 - Studio: przycisk **BBrbx** na pasku pluginów, zakładki **Import/Export / Play/Upload / Extras / Settings**.
 
 ## Instalacja
@@ -27,7 +27,7 @@ Bind sam poprawia skalę, usuwa zagnieżdżony AnimationController, stawia siatk
 
 Potem animujesz i importujesz normalnie. Kości dodane w Blenderze dostają przy eksporcie prawdziwy spoczynek ze Studio, więc koniec ze zgadywaniem osi (dawny obrót o 180° wokół Y).
 
-**Kości pomocnicze** (IK, pole, kontrolki) nie trafiają do Robloxa. W sekcji Rig (BBrbx) możesz to zmienić dla wybranej kości: Always / Auto / Never.
+**Kości pomocnicze** (IK, pole, kontrolki) nie trafiają do Robloxa. W sekcji Utility (BBrbx) możesz to zmienić dla wybranej kości: Always / Auto / Never.
 
 **Przebudowa riga** (Generate rig) ma teraz opcję **Keep my bones**: zachowuje twoje kości, constrainty i akcję.
 
