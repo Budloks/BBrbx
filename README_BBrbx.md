@@ -128,13 +128,14 @@ Na co uważać:
 - Plugin nie trzyma armatury z poprzedniego pliku Blendera.
 - Skalowanie broni przy grającym podglądzie nie zapisuje pozy z animacji w spoczynku.
 - Import kości Motor6D ze skinned mesh idzie dokładną ścieżką (round-trip Studio → Blender → Studio).
+- Kość z wyłączonym Inherit Rotation i kość pod helperem wracają ze Studio do Blendera bez podwójnego obrotu rodzica.
 - Przyciski, które wyglądały na wyszarzone, działają normalnie, a podpowiedzi pokazują się w swojej karcie.
 - Suwak FOV nie wypisuje błędów w konsoli.
 - Plugin budował się z repo tylko z ręcznie dociągniętymi Packages. Fusion i Promise są teraz w `vendor/Packages.rbxm`.
 
 ## Ograniczenia
 
-- **Kość z wyłączonym Inherit Rotation** wraca z błędem przy przenoszeniu animacji ze Studio do Blendera. Z Blendera do Studio działa dobrze.
+- **Kości, które w Blenderze wciąż ciągnie aktywny constraint** (Child Of, Copy Location od helpera), po przeniesieniu animacji ze Studio do Blendera dostają ruch helpera drugi raz, bo constraint działa na zaimportowaną pozę. Wycisz constraint albo animuj helper zamiast kości.
 - **Roblox nie animuje skali.** Skala kości zamienia się w stały rozmiar przy Synchronise.
 - **Helper skalowanej broni wiszący poza nią** (np. na HumanoidRootPart) skaluje się dokładnie tylko wtedy, gdy broń stoi w spoczynku.
 - **Lewa ręka może odjechać od chwytu** po powiększeniu broni, jeśli jej cel IK nie jest podpięty pod broń.

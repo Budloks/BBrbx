@@ -581,6 +581,14 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                         bones_to_process.append((pose_bone, source_bone_name))
 
                 bones_to_process.sort(key=lambda item: len(item[0].parent_recursive))
+                # BBrbx: a bone's .matrix is only re-evaluated by the depsgraph,
+                # so a child must not be solved against a parent set earlier in
+                # this frame without an update. Plain children got away with it
+                # (the stale parent cancels out), but a bone that does not
+                # inherit rotation, or one under a helper bone, did not: its
+                # parent's motion was applied twice on Studio -> Blender.
+                # Parents come first, so this is one update per hierarchy level.
+                pending_update = set()
 
                 # Simplified single-pass processing loop.
                 # By iterating through bones sorted by hierarchy (parents first), we ensure
@@ -592,6 +600,17 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                     pose_data = state.get(source_bone_name)
                     if not pose_data:
                         continue
+                    if pending_update and any(p.name in pending_update for p in pose_bone.parent_recursive):
+                        # NLA strips would write over the pose set so far
+                        ad = ao.animation_data
+                        nla_was = bool(ad and ad.use_nla)
+                        if nla_was:
+                            ad.use_nla = False
+                        bpy.context.view_layer.update()
+                        if nla_was:
+                            ad.use_nla = True
+                        pending_update.clear()
+                    pending_update.add(bone_name)
 
                     if bone_name not in all_bone_data:
                         all_bone_data[bone_name] = {
