@@ -32,10 +32,15 @@ local function createPlaybackButton(props: { [any]: any })
 	return New("ImageButton")({
 		Image = props.Image,
 		Size = props.Size or UDim2.new(0, 40, 0, 40),
-		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.Button),
+		BackgroundTransparency = Computed(function()
+			return if isPressed:get() then 0.2 elseif isHovering:get() then 0.5 else 1
+		end),
 		ImageColor3 = props.ImageColor3,
 		LayoutOrder = props.LayoutOrder,
 		[Children] = {
+			New("UICorner")({ CornerRadius = UDim.new(0, 6) }),
 			New("UIScale")({
 				Scale = Spring(Computed(function()
 					if State.reducedMotion:get() then
@@ -274,21 +279,9 @@ function PlaybackControls.createPlaybackSection(services: any, layoutOrder: numb
 end
 
 function PlaybackControls.createHeaderPlayback(services: any, layoutOrder: number?)
-	local loopScale = Value(1)
-	local loopPressScale = Spring(loopScale, 35, 0.75)
-	local function toggleLoop()
-		State.loopAnimation:set(not State.loopAnimation:get())
-		if not State.reducedMotion:get() then
-			loopScale:set(1.35)
-			task.delay(0.08, function()
-				loopScale:set(1)
-			end)
-		end
-	end
-
 	return New("Frame")({
 		Name = "HeaderPlayback",
-		Size = UDim2.new(1, 0, 0, 52),
+		Size = UDim2.new(1, 0, 0, 66),
 		BackgroundTransparency = 1,
 		LayoutOrder = layoutOrder or 3,
 		[Children] = {
@@ -394,78 +387,32 @@ function PlaybackControls.createHeaderPlayback(services: any, layoutOrder: numbe
 						end,
 					}),
 					New("Frame")({
-						Size = UDim2.new(0, 50, 0, 22),
+						Name = "LoopGap",
+						Size = UDim2.fromOffset(6, 1),
 						BackgroundTransparency = 1,
 						LayoutOrder = 5,
-						[Children] = {
-							New("UIListLayout")({
-								FillDirection = Enum.FillDirection.Horizontal,
-								Padding = UDim.new(0, 4),
-								VerticalAlignment = Enum.VerticalAlignment.Center,
-								SortOrder = Enum.SortOrder.LayoutOrder,
-							}),
-							New("TextButton")({
-								Text = "",
-								Size = Computed(function()
-									local scale = loopPressScale:get()
-									return UDim2.new(0, 12 * scale, 0, 12 * scale)
-								end),
-								AnchorPoint = Vector2.new(0.5, 0.5),
-								Position = UDim2.fromOffset(6, 11),
-								LayoutOrder = 1,
-								BackgroundColor3 = themeProvider:GetColor(Computed(function()
-									return if State.loopAnimation:get()
-										then Enum.StudioStyleGuideColor.CheckedFieldBackground
-										else Enum.StudioStyleGuideColor.InputFieldBackground
-								end)),
-								BorderSizePixel = 0,
-								[Children] = {
-									New("UIStroke")({
-										Color = themeProvider:GetColor(Enum.StudioStyleGuideColor.CheckedFieldBorder),
-										Thickness = 1,
-									}),
-									New("Frame")({
-										AnchorPoint = Vector2.new(0.5, 0.5),
-										Position = UDim2.fromScale(0.5, 0.5),
-										Size = UDim2.new(0, 6, 0, 6),
-										BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.CheckedFieldIndicator),
-										BorderSizePixel = 0,
-										Visible = Computed(function()
-											return State.loopAnimation:get()
-										end),
-									}),
-								},
-								[OnEvent("Activated")] = function()
-									toggleLoop()
-								end,
-							}),
-							New("TextButton")({
-								Text = "Loop",
-								Size = UDim2.new(0, 34, 0, 22),
-								LayoutOrder = 2,
-								BackgroundTransparency = 1,
-								TextXAlignment = Enum.TextXAlignment.Left,
-								TextYAlignment = Enum.TextYAlignment.Center,
-								TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.MainText),
-								Font = Enum.Font.SourceSans,
-								TextSize = 14,
-								[OnEvent("Activated")] = function()
-									toggleLoop()
-								end,
-							}),
-						},
+					}),
+					Checkbox({
+						LayoutOrder = 6,
+						Size = UDim2.fromOffset(58, 20),
+						Text = "Loop",
+						Value = State.loopAnimation,
 					}),
 				},
 			}),
-			Label({
+			New("TextLabel")({
+				Name = "Time",
 				LayoutOrder = 3,
-				Size = UDim2.new(1, 0, 0, 9),
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, 0, 0, 14),
 				TextXAlignment = Enum.TextXAlignment.Right,
-				TextSize = 11,
+				Font = Enum.Font.BuilderSans,
+				TextSize = 12,
+				TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
 				Text = Computed(function()
 					local playhead = State.playhead:get()
 					local currentFrame = math.floor(playhead * 60 + 0.5)
-					return string.format("%.2fs / frame %d", playhead, currentFrame)
+					return string.format("%.2fs  ·  frame %d", playhead, currentFrame)
 				end),
 			}),
 		},
