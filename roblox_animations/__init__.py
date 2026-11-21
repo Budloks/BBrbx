@@ -225,7 +225,6 @@ def _safe_register_class(cls):
             pass
 
 
-@bpy.app.handlers.persistent
 def _bb_autostart_server():
     """BBrbx: start the animation server if the preference allows it."""
     try:
@@ -245,10 +244,11 @@ def _bb_autostart_server():
     return None
 
 
+@bpy.app.handlers.persistent
 def _on_blend_file_loaded(dummy):
     server.load_handler(dummy)
     if not bpy.app.background:
-        bpy.app.timers.register(_bb_autostart_server, first_interval=0.5)
+        bpy.app.timers.register(_bb_autostart_server, first_interval=0.5, persistent=True)
 
 
 def _remove_blend_file_load_handlers():
@@ -322,7 +322,7 @@ def register():
         _remove_blend_file_load_handlers()
         bpy.app.handlers.load_post.append(_on_blend_file_loaded)
         if not bpy.app.background:
-            bpy.app.timers.register(_bb_autostart_server, first_interval=1.0)
+            bpy.app.timers.register(_bb_autostart_server, first_interval=1.0, persistent=True)
 
     except Exception as e:
         print(f"Error registering Roblox Animations addon: {e}")
