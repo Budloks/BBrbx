@@ -12,8 +12,8 @@ local OnEvent = Fusion.OnEvent
 local Computed = Fusion.Computed
 local Value = Fusion.Value
 
+local Kit = require(script.Parent.Parent.Kit)
 local StudioComponents = script.Parent.Parent.Parent.Components:FindFirstChild("StudioComponents")
-local Button = require(StudioComponents.Button)
 local Dropdown = require(StudioComponents.Dropdown)
 local Label = require(StudioComponents.Label)
 local TextInput = require(StudioComponents.TextInput)
@@ -93,13 +93,13 @@ function KeyframeNaming.createKeyframeNamingUI(services: any, layoutOrder: numbe
 				LayoutOrder = 5,
 				BackgroundTransparency = 1,
 				[Children] = {
-					Button({
+					Kit.Button({
 						Text = "Add marker",
 						Size = UDim2.new(1, 0, 1, 0),
-						Activated = KeyframeNaming.addKeyframeName :: (() -> nil)?,
-						Enabled = Computed(function()
-							return State.activeRigExists:get()
-						end),
+						Activated = function()
+							KeyframeNaming.addKeyframeName()
+						end,
+						Enabled = State.activeRigExists,
 					}),
 				},
 			}) :: any,

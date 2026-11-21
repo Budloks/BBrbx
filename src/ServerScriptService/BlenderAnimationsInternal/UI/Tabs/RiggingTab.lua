@@ -1,7 +1,6 @@
 --!native
 --!strict
 --!optimize 2
-local ServerScriptService = game:GetService("ServerScriptService")
 
 local State = require(script.Parent.Parent.Parent.state)
 local Fusion = require(script.Parent.Parent.Parent.Packages.Fusion)
@@ -16,54 +15,12 @@ local Observer = Fusion.Observer
 
 local StudioComponents = script.Parent.Parent.Parent.Components:FindFirstChild("StudioComponents")
 local Label = require(StudioComponents.Label)
-local Button = require(StudioComponents.Button)
-local MainButton = require(StudioComponents.MainButton)
 local Checkbox = require(StudioComponents.Checkbox)
 local VerticalCollapsibleSection = require(StudioComponents.VerticalCollapsibleSection)
 
 local StudioComponentsUtil = StudioComponents:FindFirstChild("Util")
 local themeProvider = require(StudioComponentsUtil.themeProvider)
 
-local studioLocale = game:GetService("StudioService").StudioLocaleId or "en-us"
-local localeLang = studioLocale:sub(1, 2):lower()
-
-local RBXM_REQUIREMENT: { [string]: string } = {
-	en = "Requires v3.0.0+ of the Blender addon. Download the latest version to use .rbxm import.",
-	es = "Requiere la v3.0.0+ del addon de Blender. Descarga la última versión para usar la importación .rbxm.",
-	pt = "Requer a v3.0.0+ do addon do Blender. Baixe a versão mais recente para usar a importação .rbxm.",
-	fr = "Nécessite la v3.0.0+ de l'addon Blender. Téléchargez la dernière version pour utiliser l'import .rbxm.",
-	de = "Erfordert v3.0.0+ des Blender-Addons. Lade die neueste Version herunter, um den .rbxm-Import zu nutzen.",
-	it = "Richiede la v3.0.0+ dell'addon di Blender. Scarica l'ultima versione per usare l'importazione .rbxm.",
-	ja = "Blenderアドオン v3.0.0 以上が必要です。.rbxm インポートを使うには最新バージョンをダウンロードしてください。",
-	ko = "Blender 애드온 v3.0.0 이상이 필요합니다. .rbxm 가져오기를 사용하려면 최신 버전을 다운로드하세요.",
-	ar = "يتطلب الإصدار v3.0.0+ من إضافة Blender. نزّل أحدث إصدار لاستخدام استيراد .rbxm.",
-	ru = "Требуется аддон Blender v3.0.0+. Загрузите последнюю версию, чтобы использовать импорт .rbxm.",
-	id = "Memerlukan addon Blender v3.0.0+. Unduh versi terbaru untuk menggunakan impor .rbxm.",
-	ms = "Memerlukan addon Blender v3.0.0+. Muat turun versi terkini untuk menggunakan import .rbxm.",
-	th = "ต้องใช้ Blender addon v3.0.0 ขึ้นไป ดาวน์โหลดเวอร์ชันล่าสุดเพื่อใช้การนำเข้า .rbxm",
-	tr = "Blender eklentisinin v3.0.0+ sürümü gerekir. .rbxm içe aktarmayı kullanmak için en son sürümü indirin.",
-	vi = "Yêu cầu Blender addon v3.0.0 trở lên. Hãy tải phiên bản mới nhất để dùng nhập .rbxm.",
-	pl = "Wymaga dodatku do Blendera v3.0.0+. Pobierz najnowszą wersję, aby korzystać z importu .rbxm.",
-}
-
-local RBXM_ALTERNATIVE: { [string]: string } = {
-	en = "You don't need this button to export — you can also right-click the rig and 'Save to File', or save your place as .rbxl.",
-	es = "No necesitas este botón para exportar: también puedes hacer clic derecho en el rig y 'Guardar como archivo', o guardar tu lugar como .rbxl.",
-	pt = "Você não precisa deste botão para exportar — também pode clicar com o botão direito no rig e 'Salvar em arquivo', ou salvar o lugar como .rbxl.",
-	fr = "Pas besoin de ce bouton pour exporter — vous pouvez aussi faire un clic droit sur le rig et 'Enregistrer dans un fichier', ou enregistrer votre place en .rbxl.",
-	de = "Du brauchst diesen Button nicht zum Exportieren — du kannst auch mit Rechtsklick auf das Rig 'In Datei speichern' wählen oder deine Place als .rbxl speichern.",
-	it = "Non serve questo pulsante per esportare — puoi anche fare clic destro sul rig e 'Salva su file', oppure salvare la tua place come .rbxl.",
-	ja = "書き出しにこのボタンは不要です。リグを右クリックして「ファイルに保存」を選ぶか、プレイスを .rbxl として保存することもできます。",
-	ko = "내보내기에 이 버튼이 꼭 필요하지는 않습니다. 리그를 우클릭하여 '파일로 저장'하거나, 플레이스를 .rbxl로 저장할 수도 있습니다.",
-	ar = "لا تحتاج إلى هذا الزر للتصدير — يمكنك أيضًا النقر بزر الماوس الأيمن على الهيكل واختيار 'حفظ إلى ملف'، أو حفظ مكانك كملف .rbxl.",
-	ru = "Для экспорта эта кнопка не обязательна — можно также щёлкнуть по ригу правой кнопкой и выбрать 'Сохранить в файл' или сохранить плейс как .rbxl.",
-	id = "Kamu tidak perlu tombol ini untuk mengekspor — kamu juga bisa klik kanan rig lalu 'Simpan ke File', atau simpan place sebagai .rbxl.",
-	ms = "Anda tidak perlukan butang ini untuk mengeksport — anda juga boleh klik kanan rig dan 'Simpan ke Fail', atau simpan place anda sebagai .rbxl.",
-	th = "คุณไม่จำเป็นต้องใช้ปุ่มนี้ในการส่งออก — คุณสามารถคลิกขวาที่ rig แล้วเลือก 'บันทึกเป็นไฟล์' หรือบันทึก place ของคุณเป็น .rbxl ก็ได้",
-	tr = "Dışa aktarmak için bu düğmeye gerek yok — rige sağ tıklayıp 'Dosyaya Kaydet' diyebilir veya place'inizi .rbxl olarak kaydedebilirsiniz.",
-	vi = "Bạn không cần nút này để xuất — bạn cũng có thể nhấp chuột phải vào rig và chọn 'Lưu ra tệp', hoặc lưu place dưới dạng .rbxl.",
-	pl = "Ten przycisk nie jest potrzebny do eksportu — możesz też kliknąć rig prawym przyciskiem i wybrać 'Zapisz do pliku' albo zapisać place jako .rbxl.",
-}
 
 local SharedComponents = require(script.Parent.Parent.SharedComponents)
 local Kit = require(script.Parent.Parent.Kit)
@@ -296,12 +253,12 @@ local function createPreviewSlot(
 						TextSize = 14,
 						TextTruncate = Enum.TextTruncate.AtEnd,
 					}) :: any,
-					Button({
+					Kit.Button({
 						LayoutOrder = 3,
 						Text = pickText,
-						Size = UDim2.new(1, 0, 0, 22),
+						Size = UDim2.new(1, 0, 0, 24),
 						Activated = onPick,
-					}) :: any,
+					}),
 				},
 			}),
 		},
@@ -309,8 +266,15 @@ local function createPreviewSlot(
 end
 
 function RiggingTab.create(services: any)
+	-- One hint per card, so a tooltip always shows in the card you hover.
 	local activeHint = Value("")
+	local exportHint = Value("")
 	local weaponHint = Value("")
+	local function setHint(target: any, text: string)
+		return function(on: boolean)
+			target:set(if on then text else "")
+		end
+	end
 
 	-- Rig preview uses the lastKnownRigModel / activeRigModel.
 	-- Depend on BOTH activeRigExists AND rigModelName (both reactive Values)
@@ -459,132 +423,79 @@ function RiggingTab.create(services: any)
 			Collapsed = true,
 			LayoutOrder = 1,
 			[Children] = {
-				MainButton({
+				Kit.PrimaryButton({
 					Text = "Export rig (.rbxm)",
-					Size = UDim2.new(1, 0, 0, 30),
-					Enabled = Computed(function()
-						return State.activeRigExists:get()
-					end),
-					Activated = function(): nil
+					LayoutOrder = 1,
+					Enabled = State.activeRigExists,
+					Activated = function()
+						exportHint:set("")
 						services.exportManager:exportRigRbxm()
-						return nil
 					end,
-					[OnEvent("MouseEnter")] = function()
-						activeHint:set(
-							"Saves the rig as a binary .rbxm via Studio's save dialog. Import it in Blender with 'Import Roblox (.rbxm/.rbxl)' — joints, skinning, and meshes are read straight from the file."
-						)
-					end,
-					[OnEvent("MouseLeave")] = function()
-						activeHint:set("")
-					end,
-				}) :: any,
+					OnHover = setHint(
+						exportHint,
+						"Saves the rig as .rbxm. In Blender: Import / Export, Roblox rig (.rbxm / .rbxl)."
+					),
+				}),
 				Checkbox({
 					Value = State.setRigOrigin,
 					Text = "Center rig at origin",
+					LayoutOrder = 2,
 					OnChange = function(newValue: boolean): nil
 						State.setRigOrigin:set(newValue)
 						return nil
 					end,
 				}) :: any,
-				Label({
-					Text = (RBXM_REQUIREMENT[localeLang] or RBXM_REQUIREMENT.en)
-						.. "\n"
-						.. (RBXM_ALTERNATIVE[localeLang] or RBXM_ALTERNATIVE.en),
-					TextWrapped = true,
-					TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
-					TextSize = 14,
-				}) :: any,
+				Kit.Hint({
+					Text = Computed(function()
+						if exportHint:get() ~= "" then
+							return exportHint:get()
+						end
+						return "You can also right-click the rig and Save to File."
+					end),
+					LayoutOrder = 3,
+				}),
 				VerticalCollapsibleSection({
 					Text = "Old exporters (discontinued)",
 					Collapsed = true,
+					LayoutOrder = 4,
 					[Children] = {
-						Label({
-							Text = "These exporters are no longer supported. Use Export rig (.rbxm) above, or right-click the rig and Save to File.",
-							TextWrapped = true,
-							TextColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.DimmedText),
-							TextSize = 14,
-						}) :: any,
-						Button({
-							Text = "Export Rig (Discontinued)",
-							Size = UDim2.new(1, 0, 0, 30),
-							Enabled = Computed(function()
-								return State.activeRigExists:get()
-							end),
-							Activated = function(): nil
+						Kit.Hint({
+							Text = "Only for add-on versions older than 3.0.",
+							LayoutOrder = 1,
+						}),
+						Kit.Button({
+							Text = "Export rig (old)",
+							LayoutOrder = 2,
+							Enabled = State.activeRigExists,
+							Activated = function()
 								services.exportManager:exportRig()
-								return nil
 							end,
-							[OnEvent("MouseEnter")] = function()
-								activeHint:set(
-									"DISCONTINUED: use 'Export Rig (RBXM)' with the addon's 'Import Roblox (.rbxm/.rbxl)' instead. Kept for old addon versions. Deletes the humanoid and may have issues with textures and meshes."
-								)
-							end,
-							[OnEvent("MouseLeave")] = function()
-								activeHint:set("")
-							end,
-						}) :: any,
-						Button({
-							Text = "Export Rig [Legacy] (Discontinued)",
-							Size = UDim2.new(1, 0, 0, 30),
-							Enabled = Computed(function()
-								return State.activeRigExists:get()
-							end),
-							Activated = function(): nil
+						}),
+						Kit.Button({
+							Text = "Export rig (legacy, skinned)",
+							LayoutOrder = 3,
+							Enabled = State.activeRigExists,
+							Activated = function()
 								services.exportManager:exportRigLegacy()
-								return nil
 							end,
-							[OnEvent("MouseEnter")] = function()
-								activeHint:set(
-									"DISCONTINUED: the .rbxm importer handles skinned/deform rigs natively. Kept for old addon versions. Exports with the legacy method while preserving skinned mesh and wrap metadata."
-								)
-							end,
-							[OnEvent("MouseLeave")] = function()
-								activeHint:set("")
-							end,
-						}) :: any,
-						Button({
-							Text = "Clean Meta Parts",
-							Size = UDim2.new(1, 0, 0, 30),
-							Activated = function(): nil
+						}),
+						Kit.Button({
+							Text = "Clean meta parts",
+							LayoutOrder = 4,
+							Activated = function()
 								services.exportManager:clearMetaParts()
-								return nil
 							end,
-							[OnEvent("MouseEnter")] = function()
-								activeHint:set(
-									"Removes leftover metadata parts from a previous export. This cannot be done automatically."
-								)
-							end,
-							[OnEvent("MouseLeave")] = function()
-								activeHint:set("")
-							end,
-						}) :: any,
-						Checkbox({
-							Value = State.setRigOrigin,
-							Text = "Center rig at origin",
-							OnChange = function(newValue: boolean): nil
-								State.setRigOrigin:set(newValue)
-								return nil
-							end,
-						}) :: any,
+						}),
 						Checkbox({
 							Value = State.exportWelds,
-							Text = "Export Welds (Recommended)",
+							Text = "Export welds",
+							LayoutOrder = 5,
 							OnChange = function(newValue: boolean): nil
 								State.exportWelds:set(newValue)
 								return nil
 							end,
 						}) :: any,
 					},
-				}),
-
-				SharedComponents.AnimatedHintLabel({
-					Text = activeHint,
-					LayoutOrder = 5,
-					Size = UDim2.new(1, 0, 0, 0),
-					TextWrapped = true,
-					ClipsDescendants = true,
-					Visible = true,
-					TextTransparency = 0,
 				}),
 			},
 		}),
@@ -594,123 +505,87 @@ function RiggingTab.create(services: any)
 			Collapsed = true,
 			LayoutOrder = 2,
 			[Children] = {
-				-- Rig preview slot (read-only, auto-populated)
 				createPreviewSlot(rigPreviewValue, rigPreviewName, 1, "Select in Explorer", function()
 					local rig = State.activeRigModel or State.lastKnownRigModel
 					if rig then
 						game.Selection:Set({ rig })
 					end
 				end, nil, "RIG"),
-				-- Weapon preview slot
 				createPreviewSlot(State.selectedWeapon, State.selectedWeaponName, 2, "Pick from Selection", function()
 					services.exportManager:pickWeapon()
 				end, function()
 					services.exportManager:clearWeapon()
 				end, "WEAPON"),
-				-- Connection status
-				New("Frame")({
+				New("TextLabel")({
 					LayoutOrder = 3,
-					Size = UDim2.new(1, 0, 0, 24),
 					BackgroundTransparency = 1,
-					[Children] = {
-						New("UIPadding")({
-							PaddingLeft = UDim.new(0, 4),
-						}),
-						Label({
-							Text = Computed(function()
-								local status = State.weaponConnectionStatus:get()
-								if status == "" then
-									return "Pick a weapon to check connection"
-								end
-								return status
-							end),
-							TextColor3 = Computed(function()
-								local status = State.weaponConnectionStatus:get()
-								if status:find("^[Vv]") or status:find(utf8.char(0x2713)) then
-									return Color3.fromRGB(80, 200, 80)
-								elseif status:find(utf8.char(0x26A0)) then
-									return Color3.fromRGB(220, 160, 40)
-								end
-								return Color3.fromRGB(140, 140, 140)
-							end),
-							TextSize = 12,
-							TextWrapped = true,
-							Size = UDim2.new(1, 0, 1, 0),
-						}) :: any,
-					},
+					Size = UDim2.new(1, 0, 0, 0),
+					AutomaticSize = Enum.AutomaticSize.Y,
+					Font = Enum.Font.BuilderSans,
+					TextSize = Kit.SMALL_TEXT,
+					TextWrapped = true,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					Text = Computed(function()
+						local status = State.weaponConnectionStatus:get()
+						return if status == "" then "Pick a weapon to check how it connects." else status
+					end),
+					TextColor3 = Computed(function()
+						local status = State.weaponConnectionStatus:get()
+						if status:find("^[Vv]") or status:find(utf8.char(0x2713)) then
+							return Color3.fromRGB(80, 200, 80)
+						elseif status:find(utf8.char(0x26A0)) then
+							return Color3.fromRGB(220, 160, 40)
+						end
+						return Kit.color(Enum.StudioStyleGuideColor.DimmedText):get()
+					end),
 				}),
-				-- Separator
-				New("Frame")({
-					LayoutOrder = 4,
-					Size = UDim2.new(1, 0, 0, 1),
-					BackgroundColor3 = themeProvider:GetColor(Enum.StudioStyleGuideColor.Border),
-					BorderSizePixel = 0,
-				}),
-				-- Export button
-				MainButton({
-					LayoutOrder = 5,
+				Kit.PrimaryButton({
 					Text = "Export weapon (.rbxm)",
-					Size = UDim2.new(1, 0, 0, 32),
+					LayoutOrder = 4,
 					Enabled = Computed(function()
 						return State.selectedWeapon:get() ~= nil
 					end),
-					Activated = function(): nil
-						services.exportManager:exportWeaponRbxm()
-						return nil
-					end,
-					[OnEvent("MouseEnter")] = function()
-						weaponHint:set(
-							"Saves the slotted weapon as a binary .rbxm via Studio's save dialog. Import it in Blender with 'Import Roblox (.rbxm/.rbxl)' — parts, Motor6Ds, and textures are read straight from the file."
-						)
-					end,
-					[OnEvent("MouseLeave")] = function()
+					Activated = function()
 						weaponHint:set("")
+						services.exportManager:exportWeaponRbxm()
 					end,
-				}) :: any,
+					OnHover = setHint(
+						weaponHint,
+						"Saves the weapon as .rbxm. In Blender: Import Roblox (.rbxm / .rbxl) reads parts, Motor6Ds and textures."
+					),
+				}),
+				Kit.Hint({
+					Text = weaponHint,
+					LayoutOrder = 5,
+					Visible = Computed(function()
+						return weaponHint:get() ~= ""
+					end),
+				}),
 				VerticalCollapsibleSection({
 					Text = "Old exporters (discontinued)",
 					Collapsed = true,
 					LayoutOrder = 6,
 					[Children] = {
-						Button({
-							Text = "Export Weapon (Discontinued)",
-							Size = UDim2.new(1, 0, 0, 32),
+						Kit.Button({
+							Text = "Export weapon (old)",
+							LayoutOrder = 1,
 							Enabled = Computed(function()
-								local weapon = State.selectedWeapon:get()
-								local rig = State.activeRigModel or State.lastKnownRigModel
-								return weapon ~= nil and rig ~= nil
+								local _ = State.activeRigExists:get()
+								return State.selectedWeapon:get() ~= nil
+									and (State.activeRigModel or State.lastKnownRigModel) ~= nil
 							end),
-							Activated = function(): nil
+							Activated = function()
 								services.exportManager:exportWeapon()
-								return nil
 							end,
-							[OnEvent("MouseEnter")] = function()
-								weaponHint:set(
-									"DISCONTINUED: use 'Export Weapon (RBXM)' instead. Kept for old addon versions; exports via the legacy meta-part flow with Motor6D hierarchy and connection data."
-								)
-							end,
-							[OnEvent("MouseLeave")] = function()
-								weaponHint:set("")
-							end,
-						}) :: any,
-						Button({
-							Text = "Clean Meta Parts",
-							Size = UDim2.new(1, 0, 0, 24),
-							Activated = function(): nil
+						}),
+						Kit.Button({
+							Text = "Clean meta parts",
+							LayoutOrder = 2,
+							Activated = function()
 								services.exportManager:clearMetaParts()
-								return nil
 							end,
-						}) :: any,
+						}),
 					},
-				}),
-				SharedComponents.AnimatedHintLabel({
-					Text = weaponHint,
-					LayoutOrder = 7,
-					Size = UDim2.new(1, 0, 0, 0),
-					TextWrapped = true,
-					ClipsDescendants = true,
-					Visible = true,
-					TextTransparency = 0,
 				}),
 			},
 		}),

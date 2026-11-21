@@ -324,7 +324,56 @@ function RigManager:updatePartsList()
 	-- State.rigPartsList:set(newParts) -- This needs to be handled by the main file
 end
 
-function RigManager:updateSavedAnimationsList()
+-- Keeps the Saved animations list in sync when saves are added, removed or
+-- renamed outside the plugin (Explorer, scripts, other tools).
+function RigManager:_watchAnimSaves()
+	for _, conn in ipairs(self._savesConns or {}) do
+		conn:Disconnect()
+	end
+	self._savesConns = {}
+	local rigModel = State.activeRigModel
+	if not rigModel then
+		return
+	end
+	local pending = false
+	local function refresh()
+		if pending then
+			return
+		end
+		pending = true
+		task.defer(function()
+			pending = false
+			if State.activeRigModel == rigModel then
+				self:updateSavedAnimationsList(true)
+			end
+		end)
+	end
+	local function watchSaves(saves: Instance)
+		table.insert(self._savesConns, saves.ChildAdded:Connect(function(child)
+			table.insert(self._savesConns, child:GetPropertyChangedSignal("Name"):Connect(refresh))
+			refresh()
+		end))
+		table.insert(self._savesConns, saves.ChildRemoved:Connect(refresh))
+		for _, child in ipairs(saves:GetChildren()) do
+			table.insert(self._savesConns, child:GetPropertyChangedSignal("Name"):Connect(refresh))
+		end
+	end
+	local saves = rigModel:FindFirstChild("AnimSaves")
+	if saves then
+		watchSaves(saves)
+	end
+	table.insert(self._savesConns, rigModel.ChildAdded:Connect(function(child)
+		if child.Name == "AnimSaves" then
+			watchSaves(child)
+			refresh()
+		end
+	end))
+end
+
+function RigManager:updateSavedAnimationsList(fromWatcher: boolean?)
+	if not fromWatcher then
+		self:_watchAnimSaves()
+	end
 	if not State.activeRigModel then
 		State.savedAnimations:set({})
 		return

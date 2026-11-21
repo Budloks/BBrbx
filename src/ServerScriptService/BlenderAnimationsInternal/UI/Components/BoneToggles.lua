@@ -21,6 +21,8 @@ local StudioComponentsUtil = StudioComponents:FindFirstChild("Util")
 local themeProvider = require(StudioComponentsUtil.themeProvider)
 local constants = require(StudioComponentsUtil.constants)
 
+local BoneTree = require(script.Parent.BoneTree)
+
 local BoneToggles = {}
 
 local function copyBoneWeights(list: { any })
@@ -138,6 +140,11 @@ local function applyBoneEnabled(
 end
 
 function BoneToggles.create(services: any, layoutOrder: number?)
+	-- Folding tree (shared with Export bone toggles)
+	local tree = BoneTree.new(function()
+		return State.boneWeights:get()
+	end)
+
 	local isDragging = Value(false)
 	local dragTargetState = Value(nil :: boolean?)
 	local releaseConn: RBXScriptConnection?
@@ -201,14 +208,14 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 				if index > last then
 					for i = last + 1, index do
 						local targetBone = boneWeights[i]
-						if targetBone then
+						if targetBone and not tree.isHidden(i) then
 							setDragOverride(i, target)
 						end
 					end
 				else
 					for i = last - 1, index, -1 do
 						local targetBone = boneWeights[i]
-						if targetBone then
+						if targetBone and not tree.isHidden(i) then
 							setDragOverride(i, target)
 						end
 					end
@@ -277,7 +284,9 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 
 	local section = VerticalCollapsibleSection({
 		Text = "Bone toggles",
+		Subtitle = "click or drag to mute bones",
 		Collapsed = true,
+		Padding = UDim.new(0, 2),
 		LayoutOrder = layoutOrder or 2,
 		Visible = State.activeRigExists,
 		[Children] = Computed(function()
@@ -285,12 +294,13 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 			local items = {}
 			-- Reset row states when bone list changes
 			table.clear(rowStates)
+			tree.prepare(boneWeights)
+			table.insert(items, tree.toolbar(0))
 
 			for i, bone in ipairs(boneWeights) do
-				local indentWidth = bone.depth * 10
+				local indentWidth = bone.depth * 12
 				local iconData = getBoneIconData(bone.name)
 				local rowState = getRowState(i, bone.enabled)
-
 				table.insert(
 					items,
 					New("Frame")({
@@ -298,8 +308,9 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 						BackgroundTransparency = 1,
 						BorderSizePixel = 0,
 						LayoutOrder = i,
+						Visible = tree.rowVisible(i),
 						[OnEvent("InputBegan")] = function(input)
-							if input.UserInputType == Enum.UserInputType.MouseButton1 then
+							if input.UserInputType == Enum.UserInputType.MouseButton1 and not tree.overChevron(i, input) then
 								beginDrag(boneWeights, bone, i)
 							end
 						end,
@@ -340,11 +351,12 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 								BackgroundTransparency = 1,
 								LayoutOrder = 1,
 							}),
+							tree.chevron(i, 2),
 							Checkbox({
 								Value = rowState.enabled,
 								Text = "",
 								Size = UDim2.fromOffset(16, 16),
-								LayoutOrder = 2,
+								LayoutOrder = 3,
 								[OnEvent("InputBegan")] = function(input)
 									if input.UserInputType == Enum.UserInputType.MouseButton1 then
 										beginDrag(boneWeights, bone, i)
@@ -372,7 +384,7 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 							New("ImageLabel")({
 								BackgroundTransparency = 1,
 								Size = UDim2.fromOffset(18, 18),
-								LayoutOrder = 3,
+								LayoutOrder = 4,
 								Image = iconData and iconData.Image or "",
 								ImageRectOffset = iconData and iconData.ImageRectOffset or Vector2.new(0, 0),
 								ImageRectSize = iconData and iconData.ImageRectSize or Vector2.new(0, 0),
@@ -385,9 +397,9 @@ function BoneToggles.create(services: any, layoutOrder: number?)
 								end),
 							}),
 							New("Frame")({
-								Size = UDim2.new(1, -80 - indentWidth, 1, 0),
+								Size = UDim2.new(1, -100 - indentWidth, 1, 0),
 								BackgroundTransparency = 1,
-								LayoutOrder = 4,
+								LayoutOrder = 5,
 								[Children] = {
 									New("TextLabel")({
 										BackgroundTransparency = 1,

@@ -264,6 +264,13 @@ function BlenderSyncManager:exportAnimationToBlender()
 		end
 	end
 
+	-- BBrbx: Blender names the action after this.
+	local selectedSave = State.selectedSavedAnim and State.selectedSavedAnim:get()
+	local animName = if selectedSave and (selectedSave :: any).name then (selectedSave :: any).name else State.animationName
+	if type(animName) == "string" and animName ~= "" and animName ~= "KeyframeSequence" then
+		(animData :: any).name = animName
+	end
+
 	-- Get target armature from selected armature
 	local targetArmature = nil
 	if State.selectedArmature:get() then

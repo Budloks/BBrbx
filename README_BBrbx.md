@@ -3,7 +3,7 @@
 Blender ⇄ Roblox Studio: rigi i animacje. Swobodna edycja riga w Blenderze, wbudowane Bulk Actions, automatyczna weryfikacja importu i poprawki błędów. Zastępuje oficjalny plugin (te same porty).
 
 **Gdzie co jest:**
-- Blender: View3D → Sidebar (N) → zakładka **BBrbx**: status połączenia i armatura na górze, pod spodem sekcje Import & Rig Setup, Rig, Skinned Meshes → Roblox, Face Controls, Animation, UGC Emote Validation, Roblox Account, About.
+- Blender: View3D → Sidebar (N) → zakładka **BBrbx**: status połączenia i armatura na górze, pod spodem sekcje Rig, Animation, Import / Export (import riga i animacji, bake, Export Deform FBX) i Advanced (IK, world space, constrainty, face controls, walidacja UGC, konto, About).
 - Studio: przycisk **BBrbx** na pasku pluginów, zakładki **Animate / Rig / Tools / Settings**.
 
 ## Instalacja
@@ -19,7 +19,7 @@ Porty zostają te same (31337), a stare pliki `.blend` i rigi działają bez zmi
 - W Studio: zakładka Rig → **Push Rig**. Brakujące Bone'y i Motor6D zostaną utworzone, zmieniony spoczynek zaktualizowany, a kości w Blenderze ostemplowane, więc eksport idzie 1:1.
 
 **Z siatkami skinned** (łuk, kusza, cokolwiek, co się wygina):
-1. Blender: Sidebar → BBrbx → **Skinned Meshes → Roblox** → **Export Deform FBX**.
+1. Blender: Sidebar → BBrbx → **Import / Export** → **Export Deform FBX**.
 2. Studio: Home → Import 3D, z domyślnymi ustawieniami.
 3. Studio: Rig → **Bind Imported Mesh**.
 

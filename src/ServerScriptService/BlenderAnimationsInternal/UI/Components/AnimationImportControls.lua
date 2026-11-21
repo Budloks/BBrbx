@@ -206,7 +206,17 @@ function AnimationImportControls.createBlenderCard(services: any, layoutOrder: n
 							State.loadingEnabled:set(false)
 							if not ok then
 								services.rigManager:addWarning("Failed to export animation to Blender")
+								return
 							end
+							local saved = State.selectedSavedAnim:get()
+							local name = if saved then (saved :: any).name else "the animation"
+							hint:set("Sent " .. tostring(name) .. " to Blender as an action.")
+							BulkActions.requestRefresh()
+							task.delay(4, function()
+								if hint:get():sub(1, 5) == "Sent " then
+									hint:set("")
+								end
+							end)
 						end,
 						OnHover = hover("Sends the animation playing in Studio to Blender."),
 					}),

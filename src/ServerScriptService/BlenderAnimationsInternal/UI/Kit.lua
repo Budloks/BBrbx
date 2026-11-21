@@ -174,6 +174,11 @@ local function makeButton(props: any, primary: boolean)
 			end
 		end,
 		[OnEvent("Activated")] = function()
+			-- A click often hides or replaces the button (Connect -> connected
+			-- view), and then MouseLeave never fires: drop the hint now.
+			if props.OnHover then
+				props.OnHover(false)
+			end
 			if isEnabled:get() and props.Activated then
 				props.Activated()
 			end

@@ -482,7 +482,21 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
                     bone.matrix_basis = Matrix.Identity(4)
                 bpy.context.view_layer.update()  # Ensure the pose update is registered
 
-            action = bpy.data.actions.new(name=f"{armature_name}_ImportedAnimation")
+            # BBrbx: name the action after the Studio animation, and replace an
+            # unused action of the same name instead of piling up .001 copies.
+            wanted = str(animation_data.get("name") or "").strip() if isinstance(animation_data, dict) else ""
+            if not wanted:
+                wanted = f"{armature_name}_ImportedAnimation"
+            previous = bpy.data.actions.get(wanted)
+            if previous is not None:
+                # Keep exactly one backup of what Blender had under this name.
+                backup_name = f"{wanted} (before Studio)"
+                old_backup = bpy.data.actions.get(backup_name)
+                if old_backup is not None and old_backup.users <= int(old_backup.use_fake_user):
+                    bpy.data.actions.remove(old_backup)
+                previous.name = backup_name
+                previous.use_fake_user = True
+            action = bpy.data.actions.new(name=wanted)
             ao.animation_data_create()
             ao.animation_data.action = action
 
@@ -688,7 +702,16 @@ def execute_import_animation(task_id, animation_data, target_armature=None):
 
                             cur_obj_transform = parent_obj_transform @ cur_transform
                         else:
-                            cur_obj_transform = bone_transform
+                            # BB fork: exact inverse of the exporter
+                            # (sampling.serialize_animation_state). Roblox poses are
+                            # relative to the joint's rest, so the root has to be put
+                            # back on its rest; using the pose as an absolute matrix
+                            # dropped viewmodels to the armature origin (-3.6 studs
+                            # on TAC50) and came back as a root offset.
+                            root_rest = back_trans @ (orig_mat @ orig_mat_tr1)
+                            if pose_bone.parent is None and pose_bone.bone.get("rbx_source_name"):
+                                root_rest = orig_mat @ orig_mat_tr1
+                            cur_obj_transform = root_rest @ bone_transform
 
                         final_matrix = (
                             transform_to_blender

@@ -40,3 +40,45 @@ class TestImportedRootSampling(unittest.TestCase):
         finally:
             bpy.data.objects.remove(rig, do_unlink=True)
             bpy.data.armatures.remove(data)
+
+    def test_identity_pose_from_studio_keeps_root_on_its_rest(self):
+        """Studio -> Blender -> Studio must not move an offset root (TAC50: -3.6 studs)."""
+        from ..server import requests as rq
+
+        if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.add(type='ARMATURE', enter_editmode=True)
+        rig = bpy.context.object
+        rig.name = 'RootOffsetRig'
+        data = rig.data
+        rest = Matrix.Translation((0, 3.6, 0))
+        bone = data.edit_bones.new('Root')
+        bone.matrix = get_transform_to_blender() @ rest
+        bone.length = 0.25
+        for key, matrix in [('transform', rest), ('transform1', Matrix.Identity(4)),
+                            ('nicetransform', Matrix.Identity(4))]:
+            bone[key] = [list(row) for row in matrix]
+        bone['rbx_source_name'] = 'Root'
+        bone['is_transformable'] = True
+        bpy.ops.object.mode_set(mode='OBJECT')
+        try:
+            identity = mat_to_cf(Matrix.Identity(4))
+            payload = {
+                'name': 'RootTest',
+                't': 1 / 30,
+                'kfs': [{'t': 0, 'kf': {'Root': identity}}, {'t': 1 / 30, 'kf': {'Root': identity}}],
+                'export_info': {'fps': 30},
+            }
+            rq.execute_import_animation('root-test', payload, rig.name)
+            ok, _ = rq.pending_responses.pop('root-test', (True, None))
+            self.assertTrue(ok)
+            self.assertEqual(rig.animation_data.action.name, 'RootTest')
+            bpy.context.scene.frame_set(0)
+            bpy.context.view_layer.update()
+            pb = rig.pose.bones['Root']
+            self.assertLess((pb.matrix.to_translation() - pb.bone.matrix_local.to_translation()).length, 1e-4)
+            state = serialize_animation_state(rig)
+            self.assertNotIn('Root', state)
+        finally:
+            bpy.data.objects.remove(rig, do_unlink=True)
+            bpy.data.armatures.remove(data)

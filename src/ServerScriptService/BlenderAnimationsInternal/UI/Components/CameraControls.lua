@@ -11,7 +11,6 @@ local Value = Fusion.Value
 local Computed = Fusion.Computed
 
 local StudioComponents = script.Parent.Parent.Parent.Components:FindFirstChild("StudioComponents")
-local Button = require(StudioComponents.Button)
 local Dropdown = require(StudioComponents.Dropdown)
 local Label = require(StudioComponents.Label)
 local Slider = require(StudioComponents.Slider)
@@ -32,6 +31,7 @@ function CameraControls.createCameraControlsUI(services: any)
 			New("Frame")({
 				Size = UDim2.new(1, 0, 0, 25),
 				LayoutOrder = 2,
+				BackgroundTransparency = 1,
 				[Children] = {
 					Dropdown({
 						Options = services and services.cameraManager and services.cameraManager:getPartsList() or Value({}),
@@ -55,12 +55,14 @@ function CameraControls.createCameraControlsUI(services: any)
 			New("Frame")({
 				LayoutOrder = 3,
 				Size = UDim2.new(1, 0, 0, 30),
+				BackgroundTransparency = 1,
 				[Children] = {
-					Button({
+					Kit.PrimaryButton({
 						Text = Computed(function()
-							return State.isCameraAttached:get() and "Detach camera" or "Attach camera"
+							return if State.isCameraAttached:get() then "Detach camera" else "Attach camera"
 						end),
-						Activated = function(): nil
+						Size = UDim2.new(1, 0, 1, 0),
+						Activated = function()
 							if services and services.cameraManager then
 								if State.isCameraAttached:get() then
 									services.cameraManager:detachCamera()
@@ -69,11 +71,8 @@ function CameraControls.createCameraControlsUI(services: any)
 									services.cameraManager:attachCameraByName(State.selectedPartName:get())
 								end
 							end
-							return nil
 						end,
-						Enabled = Computed(function()
-							return State.activeRigExists:get()
-						end),
+						Enabled = State.activeRigExists,
 					}),
 				},
 			}) :: any,

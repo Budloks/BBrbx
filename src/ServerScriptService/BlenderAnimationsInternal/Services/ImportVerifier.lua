@@ -171,7 +171,7 @@ function ImportVerifier.verify(rig: any, check: any): { Issue }
 	-- Animated frames
 	for _, frame in ipairs(check.frames or {}) do
 		local fk = forwardKinematics(rig, frame.poses or {})
-		local bad: { [string]: number } = {}
+		local bad: { [string]: { number } } = {}
 		for name, comps in pairs(frame.joints or {}) do
 			local studio = fk[name]
 			if studio and not seen[name] and not restBad[name] then
@@ -179,16 +179,22 @@ function ImportVerifier.verify(rig: any, check: any): { Issue }
 				local dPos = (studio.Position - blender.Position).Magnitude
 				local dAng = angleBetween(studio, blender)
 				if dPos > POS_TOL or dAng > ANGLE_TOL then
-					bad[name] = dAng
+					bad[name] = { dAng, dPos }
 				end
 			end
 		end
-		for name, dAng in pairs(bad) do
+		for name, delta in pairs(bad) do
+			local dAng, dPos = delta[1], delta[2]
 			local p = parentName(name)
 			if not (p and bad[p]) then
-				local hint = if math.abs(dAng - math.pi) < math.rad(10)
-					then "turned ~180° (bone axes differ; re-export, or press Push Rig to re-stamp)"
-					else string.format("off by %.1f° at frame %s", math.deg(dAng), tostring(frame.frame))
+				local hint
+				if math.abs(dAng - math.pi) < math.rad(10) then
+					hint = "turned ~180° (bone axes differ; re-export, or press Push Rig to re-stamp)"
+				elseif dAng > ANGLE_TOL then
+					hint = string.format("off by %.1f° / %.3f studs at frame %s", math.deg(dAng), dPos, tostring(frame.frame))
+				else
+					hint = string.format("off by %.3f studs at frame %s", dPos, tostring(frame.frame))
+				end
 				add(name, "pose does not match Blender: " .. hint)
 			end
 		end

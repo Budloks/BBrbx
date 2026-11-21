@@ -43,6 +43,12 @@ local function row(children: { any }, order: number, height: number?)
 	})
 end
 
+-- Other cards ask for a fresh list after they change Blender (Send to Blender).
+local refreshRequests = Instance.new("BindableEvent")
+function BulkActions.requestRefresh()
+	refreshRequests:Fire()
+end
+
 function BulkActions.createBody(services: any, layoutOrder: number, visible: any?)
 	local bulk = services.bulkService
 	local rows = Value({} :: { any })
@@ -155,6 +161,8 @@ function BulkActions.createBody(services: any, layoutOrder: number, visible: any
 	Fusion.Observer(State.activeRigExists):onChange(autoRefresh)
 	Fusion.Observer(State.rigModelName):onChange(autoRefresh)
 	Fusion.Observer(State.selectedArmature):onChange(autoRefresh)
+	Fusion.Observer(State.savedAnimations):onChange(autoRefresh)
+	refreshRequests.Event:Connect(autoRefresh)
 	autoRefresh()
 
 	local enabledIdle = Computed(function()
