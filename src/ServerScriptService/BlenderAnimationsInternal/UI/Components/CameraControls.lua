@@ -88,9 +88,7 @@ function CameraControls.createCameraControlsUI(services: any)
 				Min = 10,
 				Max = 120,
 				Step = 1,
-				Value = Computed(function()
-					return State.fovValue:get()
-				end),
+				Value = State.fovValue,
 				OnChange = function(value)
 					State.fovValue:set(value)
 					local camera = game.Workspace.CurrentCamera

@@ -268,7 +268,15 @@ def handle(handler, method):
                         break
             except OSError:
                 pass
-            _send(handler, 200, {"ok": True, "fork": "BBrbx", "version": version, "loaded": _LOADED_AT})
+            try:
+                blend = bpy.data.filepath
+            except Exception:
+                blend = ""
+            # session: changes when Blender restarts, the add-on reloads or
+            # another .blend is opened, so Studio knows to refresh its lists
+            session = f"{os.getpid()}|{_LOADED_AT}|{blend}"
+            _send(handler, 200, {"ok": True, "fork": "BBrbx", "version": version, "loaded": _LOADED_AT,
+                                 "session": session})
         elif method == "GET" and path == "/bb/debug_server":
             from . import server as fresh
 

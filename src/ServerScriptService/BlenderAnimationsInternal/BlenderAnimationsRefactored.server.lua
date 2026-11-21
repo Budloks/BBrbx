@@ -482,10 +482,24 @@ do -- Creates the plugin
     task.spawn(function()
         local HttpService = game:GetService("HttpService")
         local misses = 0
+        local lastSession: string? = nil
         local function ping(): boolean
-            local ok = pcall(function()
-                HttpService:GetAsync("http://localhost:" .. tostring(State.serverPort:get()) .. "/bb/ping", true)
+            local ok, body = pcall(function()
+                return HttpService:GetAsync("http://localhost:" .. tostring(State.serverPort:get()) .. "/bb/ping", true)
             end)
+            if ok then
+                -- Blender restarted / another file opened faster than three
+                -- missed pings: refresh armatures and actions on our own.
+                local decoded = select(2, pcall(HttpService.JSONDecode, HttpService, body))
+                local session = if type(decoded) == "table" then decoded.session else nil
+                if type(session) == "string" then
+                    local changed = lastSession ~= nil and lastSession ~= session
+                    lastSession = session
+                    if changed and State.isServerConnected:get() then
+                        require(script.Parent.UI.Components.BulkActions).refreshAll(services)
+                    end
+                end
+            end
             return ok
         end
         task.wait(1)

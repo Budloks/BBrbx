@@ -241,6 +241,34 @@ class TestAnimationSerialization(unittest.TestCase):
             # The setUp will handle the full cleanup.
             pass
 
+    def assert_plays_like_dense_bake(self, armature_obj, result, names):
+        """Thinned skinned export plays exactly like the dense per-frame bake."""
+        from unittest import mock
+
+        from ..animation.ir import PoseEntry
+        from ..animation import thinning
+        from ..animation.thinning import _expected
+
+        with mock.patch.object(thinning, "drop_redundant_poses", lambda c: c):
+            dense = serialize(armature_obj)
+
+        def play(kfs, name, t):
+            track = [(row["t"], PoseEntry(*row["kf"][name])) for row in kfs if name in row["kf"]]
+            self.assertTrue(track, f"{name} missing from export")
+            if t <= track[0][0]:
+                return track[0][1].components
+            for (ta, a), (tb, b) in zip(track, track[1:]):
+                if ta <= t < tb:
+                    return _expected(a, b, (t - ta) / (tb - ta), 1e-5) or a.components
+            return track[-1][1].components
+
+        for name in names:
+            for row in dense["kfs"]:
+                if name in row["kf"]:
+                    got = play(result["kfs"], name, row["t"])
+                    want = row["kf"][name][0]
+                    self.assertLess(max(abs(a - b) for a, b in zip(got, want)), 1e-4, (name, row["t"]))
+
     def assert_frame_coverage(self, keyframes, count):
         """Dense exports may add subframes, but must retain every whole frame."""
         scene = bpy.context.scene
@@ -3863,9 +3891,7 @@ class TestAnimationSerialization(unittest.TestCase):
 
         result = serialize(armature_obj)
 
-        self.assert_frame_coverage(result["kfs"], 3)
-        for name in ("Control", "DeformChild"):
-            self.assert_frame_coverage([kf for kf in result["kfs"] if name in kf["kf"]], 3)
+        self.assert_plays_like_dense_bake(armature_obj, result, ("Control", "DeformChild"))
 
     def test_skinned_non_inheriting_parent_bakes_deform_leg_descendant(self):
         """leg descendants under non-inheriting pelvis bones need dense samples."""
@@ -3946,9 +3972,9 @@ class TestAnimationSerialization(unittest.TestCase):
         result = serialize(armature_obj)
 
         self.assertNotIn("deform_rest_world", result)
-        self.assert_frame_coverage(result["kfs"], 3)
-        for name in ("LowerTorso", "UpperLeg.L", "LowerLeg.L", "Foot.L"):
-            self.assert_frame_coverage([kf for kf in result["kfs"] if name in kf["kf"]], 3)
+        self.assert_plays_like_dense_bake(
+            armature_obj, result, ("LowerTorso", "UpperLeg.L", "LowerLeg.L", "Foot.L")
+        )
         lower_torso_samples = []
         for keyframe in result["kfs"]:
             self.assertNotIn("deform_world", keyframe)

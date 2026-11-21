@@ -1359,6 +1359,13 @@ def _serialize_evaluated(ao, target_bone_rest=None):
                     "Check exported playback for this rig."
                 )
 
+        if analysis.is_skinned_rig:
+            # Skinned rigs bake every bone on every frame; keep only the
+            # poses Roblox would not reproduce on its own.
+            from .thinning import drop_redundant_poses
+
+            collected = drop_redundant_poses(collected)
+
         result = {
             "t": duration,
             "kfs": [keyframe.to_payload() for keyframe in collected],
