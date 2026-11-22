@@ -114,7 +114,7 @@ bl_info = {
     "name": "BBrbx",
     "description": "Plugin for importing roblox rigs and exporting animations.",
     "author": "Budloks",
-    "version": (3, 2, 2),
+    "version": (3, 2, 3),
     "blender": (2, 80, 0),
     "location": "View3D > Sidebar > BBrbx",
 }
