@@ -23,8 +23,8 @@ def curve(keys):
         data_path='pose.bones["Root"].location',
         modifiers=[],
         keyframe_points=CountingKeys([
-            SimpleNamespace(co=SimpleNamespace(x=frame), interpolation=style, easing="AUTO")
-            for frame, style in keys
+            SimpleNamespace(co=SimpleNamespace(x=frame, y=float(index)), interpolation=style, easing="AUTO")
+            for index, (frame, style) in enumerate(keys)
         ]),
     )
 
@@ -35,6 +35,34 @@ class TestBakePlanning(unittest.TestCase):
             SimpleNamespace(pose=SimpleNamespace(bones=[])), set(), object(), {},
             curves, {1, end}, 1, end, 30, False, False, 1,
         )
+
+    def test_untouched_constant_channel_does_not_freeze_a_spinning_one(self):
+        # a barrel keyed on every channel but spun only on Z: the single
+        # Constant keys on X/Y must not turn the whole bone into a hold
+        def keyed(path, keys):
+            return SimpleNamespace(
+                data_path=f'pose.bones["Barrel"].{path}',
+                modifiers=[],
+                keyframe_points=[
+                    SimpleNamespace(co=SimpleNamespace(x=frame, y=value), interpolation=style, easing="AUTO")
+                    for frame, value, style in keys
+                ],
+            )
+        curves = [
+            keyed("rotation_euler", [(0, 0.0, "CONSTANT")]),
+            keyed("location", [(0, 0.0, "CONSTANT"), (36, 0.0, "CONSTANT")]),
+            keyed("rotation_euler", [(0, 0.0, "BEZIER"), (36, 12.566, "BEZIER")]),
+        ]
+        plan = build_bake_plan(
+            SimpleNamespace(pose=SimpleNamespace(bones=[])), set(), object(), {},
+            curves, {0, 36}, 0, 36, 30, False, False, 1,
+        )
+        for frame in (0, 1, 18, 35):
+            self.assertEqual(
+                planning.lookup_interp_for_frame(plan.per_bone_interpolation["Barrel"], frame)[0], "BEZIER", frame
+            )
+        self.assertFalse(plan.mixed_interpolation_segments.get("Barrel"))
+        self.assertIn(36, plan.per_bone_keyframes["Barrel"])
 
     def test_staggered_channel_style_changes(self):
         curves = [

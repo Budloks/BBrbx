@@ -249,6 +249,22 @@ def frame_in_set(frames: Optional[Set[float]], frame: float, eps: float = 1e-5) 
     return False
 
 
+def _is_flat(fcurve) -> bool:
+    """A channel that never changes (one key, or every key the same value).
+
+    Its interpolation means nothing: any easing reproduces a constant. It must
+    not decide the easing of the bone's other channels, or a Constant key on an
+    untouched channel freezes a spinning one (a barrel keyed only on Z).
+    """
+    if len(getattr(fcurve, "modifiers", ()) or ()):
+        return False
+    points = fcurve.keyframe_points
+    if not len(points):
+        return True
+    first = points[0].co.y
+    return all(abs(kp.co.y - first) <= 1e-9 for kp in points)
+
+
 def _norm_frame(v: float) -> float:
     return round(float(v), FRAME_KEY_PRECISION)
 
@@ -373,6 +389,7 @@ def build_bake_plan(
     """
     # Pre-compile regex for performance.
     bone_name_pattern = re.compile(r'pose\.bones\["(.+?)"\]')
+    flat_curves = {id(fc) for fc in all_fcurves if _is_flat(fc)}
 
     dense_interpolation_segments: Dict[str, Set[Tuple[float, float]]] = defaultdict(set)
     adaptive_frames = set()
@@ -450,6 +467,7 @@ def build_bake_plan(
             nonconst_set = bone_non_constant_keyframes.setdefault(
                 bone_name_for_curve, set()
             )
+            flat = id(fcurve) in flat_curves
 
             for keyframe_point in fcurve.keyframe_points:
                 frame_idx = _norm_frame(keyframe_point.co.x)
@@ -457,6 +475,8 @@ def build_bake_plan(
                 # Track keyframes within range for sparse emission.
                 if frame_start <= frame_idx <= frame_end:
                     keyframe_set.add(frame_idx)
+                    if flat:
+                        continue  # its easing is meaningless, see _is_flat
                     if keyframe_point.interpolation == "CONSTANT":
                         const_set.add(frame_idx)
                     else:
@@ -464,7 +484,7 @@ def build_bake_plan(
 
                 # But capture interpolation data even for keys just outside range
                 # so shifted keys still get correct easing.
-                if frame_idx < frame_start - 1 or frame_idx > frame_end + 1:
+                if flat or frame_idx < frame_start - 1 or frame_idx > frame_end + 1:
                     continue
 
                 existing = frame_map.get(frame_idx)
@@ -499,7 +519,7 @@ def build_bake_plan(
         )
 
         keypoints = list(fcurve.keyframe_points)
-        if len(keypoints) < 2:
+        if len(keypoints) < 2 or id(fcurve) in flat_curves:
             continue
 
         for i, kp in enumerate(keypoints[:-1]):
@@ -538,7 +558,7 @@ def build_bake_plan(
         if not fcurve.data_path.endswith(transform_suffixes):
             continue
         match = bone_name_pattern.search(fcurve.data_path)
-        if match and len(fcurve.keyframe_points) >= 2:
+        if match and len(fcurve.keyframe_points) >= 2 and id(fcurve) not in flat_curves:
             bone_transform_curves[match.group(1)].append(fcurve)
 
     for bone_name_for_curve, curves in bone_transform_curves.items():
