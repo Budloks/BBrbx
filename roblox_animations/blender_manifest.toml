@@ -2,7 +2,7 @@ schema_version = "1.0.0"
 
 # BBrbx Blender add-on manifest
 id = "roblox_animations_importer_exporter"
-version = "3.2.3"
+version = "3.2.4"
 name = "BBrbx"
 tagline = "Roblox rigs and animations, Blender to Studio and back"
 maintainer = "Budloks"
