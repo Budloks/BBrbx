@@ -30,6 +30,9 @@ function CameraManager.new()
 	self.attachedName = nil :: string?
 	self.attachedRigModel = nil :: Instance?
 	self.attachedTarget = nil :: Instance?
+	-- true when attached to a part picked in the Explorer/viewport (any part in the
+	-- place, not tied to a rig): rig switches then leave the camera alone
+	self.freeAttach = false
 	self._targetConnections = {} :: { RBXScriptConnection }
 	self._savedCamera = nil :: { cameraType: Enum.CameraType, fov: number }?
 
@@ -84,15 +87,18 @@ end
 
 -- Attach to a specific instance. Kept for backwards compatibility with callers
 -- that pass a part directly.
-function CameraManager:attachCameraToPart(part: Instance?)
+function CameraManager:attachCameraToPart(part: Instance?, free: boolean?)
 	if not isCameraTarget(part) then
 		return
 	end
 	local target = part :: Instance
-	local rigModel = State.activeSessionRig:get() or State.activeRigModel
-	if rigModel and not target:IsDescendantOf(rigModel) then
-		-- Never attach to something outside the active rig.
-		return
+	local rigModel: Instance? = nil
+	if not free then
+		rigModel = State.activeSessionRig:get() or State.activeRigModel
+		if rigModel and not target:IsDescendantOf(rigModel) then
+			-- Never attach to something outside the active rig.
+			return
+		end
 	end
 
 	self:_disconnectTarget()
@@ -105,8 +111,11 @@ function CameraManager:attachCameraToPart(part: Instance?)
 	self.attachedName = target.Name
 	self.attachedRigModel = rigModel
 	self.attachedTarget = target
-	State.selectedPartName:set(target.Name)
-	State.selectedPart:set(target)
+	self.freeAttach = free == true
+	if not free then
+		State.selectedPartName:set(target.Name)
+		State.selectedPart:set(target)
+	end
 	State.isCameraAttached:set(true)
 
 	camera.CameraType = Enum.CameraType.Scriptable
@@ -116,7 +125,11 @@ function CameraManager:attachCameraToPart(part: Instance?)
 
 	-- Detach as soon as the target leaves the rig or is destroyed.
 	table.insert(self._targetConnections, target.AncestryChanged:Connect(function()
-		if not self.attachedRigModel or not target:IsDescendantOf(self.attachedRigModel) then
+		if self.freeAttach then
+			if not target:IsDescendantOf(game) then
+				self:detachCamera()
+			end
+		elseif not self.attachedRigModel or not target:IsDescendantOf(self.attachedRigModel) then
 			self:detachCamera()
 		end
 	end))
@@ -126,6 +139,14 @@ function CameraManager:attachCameraToPart(part: Instance?)
 
 	State.cameraConnection = RunService.RenderStepped:Connect(function()
 		if not State.isCameraAttached:get() then
+			return
+		end
+		if self.freeAttach then
+			if self.attachedTarget ~= target or not target.Parent then
+				self:detachCamera()
+				return
+			end
+			camera.CFrame = targetWorldCFrame(target)
 			return
 		end
 		local active = State.activeSessionRig:get() or State.activeRigModel
@@ -141,8 +162,20 @@ end
 
 -- Attach to a part/bone of the active rig by name (what the UI uses).
 function CameraManager:attachCameraByName(name: string?)
+	name = name or State.selectedPartName:get()
 	local rigModel = State.activeSessionRig:get() or State.activeRigModel
-	local target = self:resolve(rigModel, name or State.selectedPartName:get())
+	-- The part selected in Studio wins when it is the one picked in the dropdown;
+	-- outside the active rig it is a free attach (any part in the place).
+	local picked = State.selectedWorldPart:get()
+	if picked and picked.Parent and picked.Name == name then
+		if rigModel and picked:IsDescendantOf(rigModel) then
+			self:attachCameraToPart(picked)
+		else
+			self:attachCameraToPart(picked, true)
+		end
+		return
+	end
+	local target = self:resolve(rigModel, name)
 	if target then
 		self:attachCameraToPart(target)
 	else
@@ -171,12 +204,13 @@ function CameraManager:detachCamera()
 	self._savedCamera = nil
 	self.attachedTarget = nil
 	self.attachedRigModel = nil
+	self.freeAttach = false
 end
 
 -- Called whenever the active rig changes (selection, tab switch, tab close).
 function CameraManager:onActiveRigChanged(newRigModel: Instance?)
 	self:updatePartsList(newRigModel)
-	if not State.isCameraAttached:get() then
+	if not State.isCameraAttached:get() or self.freeAttach then
 		return
 	end
 	if newRigModel == self.attachedRigModel and self.attachedTarget and self.attachedTarget.Parent then
@@ -195,8 +229,22 @@ end
 -- name valid for that rig.
 function CameraManager:updatePartsList(rigModel: Instance?)
 	rigModel = rigModel or State.activeSessionRig:get() or State.activeRigModel
+	-- BB fork: a part/bone selected in Studio is offered (and picked) even when it
+	-- is not part of any rig.
+	local picked = State.selectedWorldPart:get()
+	if picked and not picked.Parent then
+		picked = nil
+	end
 	if not rigModel then
-		self.rigPartsList:set({})
+		if picked then
+			self.rigPartsList:set({ picked.Name })
+			State.selectedPartName:set(picked.Name)
+			State.selectedPart:set(picked)
+		else
+			self.rigPartsList:set({})
+			State.selectedPartName:set(nil)
+			State.selectedPart:set(nil)
+		end
 		return
 	end
 
@@ -243,7 +291,17 @@ function CameraManager:updatePartsList(rigModel: Instance?)
 		return a < b
 	end)
 
+	if picked and not seen[picked.Name] then
+		seen[picked.Name] = true
+		table.insert(newParts, 1, picked.Name)
+	end
+
 	self.rigPartsList:set(newParts)
+	if picked then
+		State.selectedPartName:set(picked.Name)
+		State.selectedPart:set(picked)
+		return
+	end
 
 	-- Keep the selected name valid for this rig; default to the best camera target
 	-- (CameraBone > Camera > Head) so "Attach" works without picking anything.

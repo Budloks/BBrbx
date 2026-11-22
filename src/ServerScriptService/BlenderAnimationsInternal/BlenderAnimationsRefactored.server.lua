@@ -838,6 +838,25 @@ do -- Creates the plugin
 
 end
 
+-- BB fork: remember the part/bone selected in Studio so the camera can be
+-- attached to any part, not only to parts of a rig.
+local function updateSelectedWorldPart()
+	local picked: Instance? = nil
+	for _, inst in ipairs(Selection:Get()) do
+		if inst:IsA("BasePart") or inst:IsA("Bone") then
+			picked = inst
+			break
+		end
+	end
+	if State.selectedWorldPart:get() ~= picked then
+		State.selectedWorldPart:set(picked)
+		-- the Camera dropdown shows the selected part right away
+		cameraManager:updatePartsList()
+	end
+end
+updateSelectedWorldPart()
+table.insert(State.connections, Selection.SelectionChanged:Connect(updateSelectedWorldPart))
+
 if not State.selectionConnection or not State.selectionConnection.Connected then
 	State.selectionConnection = Selection.SelectionChanged:Connect(updateActiveRigFromSelection)
 end

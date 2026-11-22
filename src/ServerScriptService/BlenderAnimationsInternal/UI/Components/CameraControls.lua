@@ -23,7 +23,7 @@ local CameraControls = {}
 function CameraControls.createCameraControlsUI(services: any)
 	return VerticalCollapsibleSection({
 		Text = "Camera",
-		Subtitle = "view through a bone",
+		Subtitle = "view through a bone or any part",
 		Collapsed = false,
 		LayoutOrder = 2,
 		[Children] = {
@@ -72,7 +72,10 @@ function CameraControls.createCameraControlsUI(services: any)
 								end
 							end
 						end,
-						Enabled = State.activeRigExists,
+						-- a rig, or any part/bone selected in Studio (BB fork)
+						Enabled = Computed(function()
+							return State.activeRigExists:get() or State.selectedWorldPart:get() ~= nil
+						end),
 					}),
 				},
 			}) :: any,

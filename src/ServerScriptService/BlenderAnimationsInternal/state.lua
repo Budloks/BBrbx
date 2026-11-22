@@ -86,6 +86,8 @@ local State = {
     selectedPart = Value(nil),
     -- BB fork: camera target is tracked by name and re-resolved per rig
     selectedPartName = Value(nil :: string?),
+    -- BB fork: part/bone currently selected in Studio (any part, rig or not) for camera attach
+    selectedWorldPart = Value(nil :: Instance?),
     -- BB fork: short description of the last import self-check ("" when it matched Blender)
     lastImportVerification = "",
     lastImportVerificationDetail = Value(""),
